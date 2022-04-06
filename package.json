@@ -1,0 +1,23 @@
+{
+  "name": "mongoclienteasywrapper",
+  "version": "1.0.0",
+  "description": "Easy wrapper for mongoclient",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlbertoMOKnesys/mongoclienteasywrapper.git"
+  },
+  "keywords": [
+    "mongoclient",
+    "wrapper"
+  ],
+  "author": "Alberto Martinez,Gustavo Luna,Taylor Gonzales,Jose Tello",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper/issues"
+  },
+  "homepage": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper#readme"
+}
