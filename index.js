@@ -75,7 +75,7 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     await db.close();
     return result;
   } catch (error) {
-    console.log(error);
+    
     return [];
   }
 }
