@@ -1,30 +1,29 @@
 // mongofunctions.js
-var  mongo
-var  mongoDb 
+var mongo;
+var mongoDb;
 const { MongoClient, Timestamp } = require("mongodb");
 const { sizeObj } = require("./common");
 const ObjectId = require("mongodb").ObjectID;
 const mongolib = require("mongodb");
 const operatorNotDeleted = { status: { $ne: "deleted" } };
-const tagDeleted={ status: "deleted" }
+const tagDeleted = { status: "deleted" };
 
-
-const Connect= (connectionString, defaultDbName)=> {
-    mongo={uri:connectionString}
-    mongoDb=defaultDbName
-    console.log("Conecting...")
-    // try {
-    //     let db = await MongoClient.connect(mongo.uri, {
-    //       useUnifiedTopology: true,
-    //     });
-    //     await db.close();
-    //     return true;
-    //   } catch (error) {
-    //     console.log(error.message);
-    //     return false
-    //   }
-    return true
-  }
+const Connect = (connectionString, defaultDbName) => {
+  mongo = { uri: connectionString };
+  mongoDb = defaultDbName;
+  console.log("Conecting...");
+  // try {
+  //     let db = await MongoClient.connect(mongo.uri, {
+  //       useUnifiedTopology: true,
+  //     });
+  //     await db.close();
+  //     return true;
+  //   } catch (error) {
+  //     console.log(error.message);
+  //     return false
+  //   }
+  return true;
+};
 
 async function FindIDOne(Id, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -75,7 +74,6 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     await db.close();
     return result;
   } catch (error) {
-    
     return [];
   }
 }
@@ -956,47 +954,70 @@ async function ND_FindIDOnePopulated(Id, collection, databaseName) {
     return {};
   }
 }
-
-module.exports = function(connectionString,defaultDbName) {
-    // Connect=Connect;
-    mongo={uri:connectionString}
-    mongoDb=defaultDbName
-   return { UpdateMongoManyBy_idPush :UpdateMongoManyBy_idPush,
-    UpdateMongoMany : UpdateMongoMany,
-    AggregationMongo : AggregationMongo,
-    UpdateMongo : UpdateMongo,
-    UpdateMongoBy_id : UpdateMongoBy_id,
-    UpdateBy_idPush_id : UpdateBy_idPush_id,
-    FindOne : FindOne,
-    FindIDOne : FindIDOne,
-    GetAll : GetAll,
-    SavetoMongoCallback : SavetoMongoCallback,
-    SavetoMongo : SavetoMongo,
-    DropCollection : DropCollection,
-    DeleteMongoCallback : DeleteMongoCallback,
-    DeleteMongo : DeleteMongo,
-    DeleteMongoby_id : DeleteMongoby_id,
-    GetLastMongo : GetLastMongo,
-    FindManyLimit : FindManyLimit,
-    FindMany : FindMany,
-    FindLimitLast : FindLimitLast,
-    Populate : Populate,
-    PopulateAuto : PopulateAuto,
-    FindPaginated : FindPaginated,
-    FindIDOnePopulated : FindIDOnePopulated,
-    UpdateMongoBy_idRemoveProperty : UpdateMongoBy_idRemoveProperty,
-    UpdateMongoBy_idPush : UpdateMongoBy_idPush,
-    ND_FindPaginated : ND_FindPaginated,
-    ND_PopulateAuto : ND_PopulateAuto,
-    ND_FindIDOnePopulated : ND_FindIDOnePopulated,
-    ND_DeleteMongoby_id : ND_DeleteMongoby_id,
-    ND_FindMany : ND_FindMany,
-    UpdateMongoManyBy_idAddToSet : UpdateMongoManyBy_idAddToSet,
-    ND_FindOne : ND_FindOne,
-    getIndexs : getIndexs,
+async function UpdateMongoManyPull(
+  query,
+  propertiesRemove,
+  collection,
+  databaseName
+) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(DatabaseName);
+    var removeValues = { $pull: propertiesRemove };
+    let result = await dbo
+      .collection(collection)
+      .updateMany(query, removeValues);
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
 }
-    
+
+module.exports = function (connectionString, defaultDbName) {
+  // Connect=Connect;
+  mongo = { uri: connectionString };
+  mongoDb = defaultDbName;
+  return {
+    UpdateMongoManyPull: UpdateMongoManyPull,
+    UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
+    UpdateMongoMany: UpdateMongoMany,
+    AggregationMongo: AggregationMongo,
+    UpdateMongo: UpdateMongo,
+    UpdateMongoBy_id: UpdateMongoBy_id,
+    UpdateBy_idPush_id: UpdateBy_idPush_id,
+    FindOne: FindOne,
+    FindIDOne: FindIDOne,
+    GetAll: GetAll,
+    SavetoMongoCallback: SavetoMongoCallback,
+    SavetoMongo: SavetoMongo,
+    DropCollection: DropCollection,
+    DeleteMongoCallback: DeleteMongoCallback,
+    DeleteMongo: DeleteMongo,
+    DeleteMongoby_id: DeleteMongoby_id,
+    GetLastMongo: GetLastMongo,
+    FindManyLimit: FindManyLimit,
+    FindMany: FindMany,
+    FindLimitLast: FindLimitLast,
+    Populate: Populate,
+    PopulateAuto: PopulateAuto,
+    FindPaginated: FindPaginated,
+    FindIDOnePopulated: FindIDOnePopulated,
+    UpdateMongoBy_idRemoveProperty: UpdateMongoBy_idRemoveProperty,
+    UpdateMongoBy_idPush: UpdateMongoBy_idPush,
+    ND_FindPaginated: ND_FindPaginated,
+    ND_PopulateAuto: ND_PopulateAuto,
+    ND_FindIDOnePopulated: ND_FindIDOnePopulated,
+    ND_DeleteMongoby_id: ND_DeleteMongoby_id,
+    ND_FindMany: ND_FindMany,
+    UpdateMongoManyBy_idAddToSet: UpdateMongoManyBy_idAddToSet,
+    ND_FindOne: ND_FindOne,
+    getIndexs: getIndexs,
   };
+};
 // exports.Connect=Connect;
 // exports.UpdateMongoManyBy_idPush = UpdateMongoManyBy_idPush;
 // exports.UpdateMongoMany = UpdateMongoMany;
