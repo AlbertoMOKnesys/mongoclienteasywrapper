@@ -291,7 +291,7 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
 
 async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -441,7 +441,24 @@ function DeleteMongoCallback(idObjectToDelete, collection, databaseName) {
     });
   });
 }
-
+async function FindOneLast(query, sortobj, collection) {
+  try {
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(mongoDb);
+    let result = await dbo
+      .collection(collection)
+      .find(query)
+      .sort(sortobj)
+      .limit(1)
+      .toArray();
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
+    return result[0];
+  } catch (error) {
+    console.log(error.message);
+    return [];
+  }
+}
 async function GetLastMongo(limit, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -985,6 +1002,7 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyPull: UpdateMongoManyPull,
     UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
     UpdateMongoMany: UpdateMongoMany,
+    FindOneLast: FindOneLast,
     AggregationMongo: AggregationMongo,
     UpdateMongo: UpdateMongo,
     UpdateMongoBy_id: UpdateMongoBy_id,
