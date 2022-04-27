@@ -441,10 +441,11 @@ function DeleteMongoCallback(idObjectToDelete, collection, databaseName) {
     });
   });
 }
-async function FindOneLast(query, sortobj, collection) {
+async function FindOneLast(query, sortobj, collection, databaseName) {
   try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
-    const dbo = db.db(mongoDb);
+    const dbo = db.db(DatabaseName);
     let result = await dbo
       .collection(collection)
       .find(query)
