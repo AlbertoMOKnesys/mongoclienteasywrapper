@@ -78,6 +78,24 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
+async function Distinct(query, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo.collection(collection).distinct(query);
+    // .toArray();
+
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
+
 async function AggregationMongo(arrAggregation, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -1016,6 +1034,7 @@ module.exports = function (connectionString, defaultDbName) {
     DropCollection: DropCollection,
     DeleteMongoCallback: DeleteMongoCallback,
     DeleteMongo: DeleteMongo,
+    Distinct: Distinct,
     DeleteMongoby_id: DeleteMongoby_id,
     GetLastMongo: GetLastMongo,
     FindManyLimit: FindManyLimit,
