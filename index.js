@@ -3,7 +3,7 @@ var mongo;
 var mongoDb;
 const { MongoClient, Timestamp } = require("mongodb");
 const { sizeObj } = require("./common");
-const ObjectId = require("mongodb").ObjectID;
+const ObjectId = require("mongodb").ObjectId;
 const mongolib = require("mongodb");
 const operatorNotDeleted = { status: { $ne: "deleted" } };
 const tagDeleted = { status: "deleted" };
@@ -55,16 +55,48 @@ function SavetoMongoCallback(objectToSave, collection, databaseName) {
   });
 }
 
+const ConvertIdtoObjectId = (objectToSave) =>
+  Object.keys(objectToSave).reduce((acum, property) => {
+    if (property.includes("_id")) {
+      if (Array.isArray(objectToSave[property])) {
+        return {
+          ...acum,
+          [property]: objectToSave[property].map(
+            (elementToConvert) => new ObjectId(elementToConvert)
+          ),
+        };
+      }
+      return { ...acum, [property]: new ObjectId(objectToSave[property]) };
+    } else {
+      return { ...acum, [property]: objectToSave[property] };
+    }
+  }, {});
+
+const ConvertDatetoDatetime = (objectToSave) =>
+  Object.keys(objectToSave).reduce((acum, property) => {
+    if (property.includes("_datetime")) {
+      if (Array.isArray(objectToSave[property])) {
+        return {
+          ...acum,
+          [property]: objectToSave[property].map(
+            (elementToConvert) => new Date(elementToConvert)
+          ),
+        };
+      }
+      return { ...acum, [property]: new Date(objectToSave[property]) };
+    } else {
+      return { ...acum, [property]: objectToSave[property] };
+    }
+  }, {});
+
 async function SavetoMongo(objectToSave, collection, databaseName) {
   try {
     // revisar si existe alguna propiedad que sea ObjectId
     const properties = Object.keys(objectToSave);
     const allKeys = properties.filter((property) => property.includes("_id"));
     console.log();
-    allKeys.map((prop) => {
-      console.log("objectToSave[prop]: ", objectToSave[prop]);
-      return (objectToSave[prop] = new ObjectId(objectToSave[prop]));
-    });
+    objectToSave = ConvertIdtoObjectId(objectToSave);
+    objectToSave = ConvertDatetoDatetime(objectToSave);
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -74,6 +106,7 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     await db.close();
     return result;
   } catch (error) {
+    console.log(error);
     return [];
   }
 }
@@ -133,7 +166,7 @@ async function DeleteMongo(query, collection, databaseName) {
 
 async function DeleteMongoby_id(_id, collection, databaseName) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: new ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -150,7 +183,7 @@ async function DeleteMongoby_id(_id, collection, databaseName) {
 
 async function ND_DeleteMongoby_id(_id, collection, databaseName) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: new ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -332,7 +365,7 @@ async function UpdateMongoBy_idPush(
   databaseName
 ) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: new ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -353,7 +386,7 @@ async function UpdateMongoManyBy_idPush(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => mongolib.ObjectID(e));
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -377,7 +410,7 @@ async function UpdateMongoManyBy_idAddToSet(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => mongolib.ObjectID(e));
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -402,7 +435,7 @@ async function UpdateMongoBy_idRemoveProperty(
   databaseName
 ) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: new ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -428,7 +461,7 @@ async function UpdateBy_idPush_id(
   databaseName
 ) {
   try {
-    const query = { _id: mongolib.ObjectID(_id) };
+    const query = { _id: new ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
@@ -436,7 +469,7 @@ async function UpdateBy_idPush_id(
     const dbo = db.db(DatabaseName);
 
     var newvalues = {
-      $push: { [originCollection]: mongolib.ObjectID(new_id) },
+      $push: { [originCollection]: new ObjectId(new_id) },
     };
     let result = await dbo.collection(collection).updateOne(query, newvalues);
     await db.close();
