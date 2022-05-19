@@ -295,6 +295,7 @@ async function getIndexs(collection, databaseName) {
 
 async function UpdateMongo(query, newProperties, collection, databaseName) {
   try {
+    newProperties = ConvertIdtoObjectId(newProperties);
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
         return { ...acum, [property]: ObjectId(query[property]) };
