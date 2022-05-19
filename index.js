@@ -343,6 +343,7 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
 
 async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
+    newProperties = ConvertIdtoObjectId(newProperties);
     const query = { _id: ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
