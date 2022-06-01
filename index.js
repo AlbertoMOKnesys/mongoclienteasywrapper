@@ -430,6 +430,30 @@ async function UpdateMongoManyBy_idAddToSet(
     return [];
   }
 }
+async function UpdateMongoManyBy_idPull(
+  _idArr,
+  newProperties,
+  collection,
+  databaseName
+) {
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
+  //si no lo resuelvo con or
+  try {
+    const query = { _id: { $in: _idArrObject } };
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    var newvalues = { $pull: newProperties };
+    let result = await dbo.collection(collection).updateMany(query, newvalues);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 async function UpdateMongoBy_idRemoveProperty(
   _id,
   property,
@@ -1055,6 +1079,8 @@ module.exports = function (connectionString, defaultDbName) {
   return {
     UpdateMongoManyPull: UpdateMongoManyPull,
     UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
+    UpdateMongoBy_idPush: UpdateMongoBy_idPush,
+    UpdateMongoManyBy_idPull,
     UpdateMongoMany: UpdateMongoMany,
     FindOneLast: FindOneLast,
     AggregationMongo: AggregationMongo,
@@ -1080,7 +1106,6 @@ module.exports = function (connectionString, defaultDbName) {
     FindPaginated: FindPaginated,
     FindIDOnePopulated: FindIDOnePopulated,
     UpdateMongoBy_idRemoveProperty: UpdateMongoBy_idRemoveProperty,
-    UpdateMongoBy_idPush: UpdateMongoBy_idPush,
     ND_FindPaginated: ND_FindPaginated,
     ND_PopulateAuto: ND_PopulateAuto,
     ND_FindIDOnePopulated: ND_FindIDOnePopulated,
