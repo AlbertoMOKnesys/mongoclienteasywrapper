@@ -454,6 +454,29 @@ async function UpdateMongoManyBy_idPull(
     return [];
   }
 }
+async function UpdateMongoManyPullIDToCollectionPull(
+  query,
+  collection,
+  databaseName
+) {
+  try {
+    // ejemplo querie
+    // {eventos_id:"fwefewhui32432u"}
+
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    var newvalues = { $pull: query };
+    let result = await dbo.collection(collection).updateMany(query, newvalues);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 async function UpdateMongoBy_idRemoveProperty(
   _id,
   property,
@@ -1080,6 +1103,8 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyPull: UpdateMongoManyPull,
     UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
     UpdateMongoBy_idPush: UpdateMongoBy_idPush,
+    UpdateMongoManyPullIDToCollectionPull:
+      UpdateMongoManyPullIDToCollectionPull,
     UpdateMongoManyBy_idPull,
     UpdateMongoMany: UpdateMongoMany,
     FindOneLast: FindOneLast,

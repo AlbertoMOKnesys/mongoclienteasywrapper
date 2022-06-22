@@ -18,17 +18,9 @@ const test = async () => {
   //   "EMPRESAPACHUCA719481"
   // );
 
-  const status = await MongoWraper.UpdateMongoManyBy_idPull(
-    ["6285082968486e9f70cc2b69", "6297dcb134f83be782e70eea"],
-    {
-      puertas_id: {
-        $in: [
-          ObjectId("6297ae16ee24062667e2079e"),
-          ObjectId("6297ad53ee24062667e2079d"),
-        ],
-      },
-    },
-    "estadios",
+  const status = await MongoWraper.UpdateMongoManyPullIDToCollectionPull(
+    { eventos_id: ObjectId("62b269ae108bf4fd0355c199") },
+    "torneos",
     "EMPRESAPACHUCA719481"
   );
   console.log(status);
