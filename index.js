@@ -296,6 +296,7 @@ async function getIndexs(collection, databaseName) {
 async function UpdateMongo(query, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
         return { ...acum, [property]: ObjectId(query[property]) };
@@ -319,6 +320,8 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
 }
 async function UpdateMongoMany(query, newProperties, collection, databaseName) {
   try {
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
         return { ...acum, [property]: ObjectId(query[property]) };
@@ -344,6 +347,7 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
 async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
     const query = { _id: ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
