@@ -1,7 +1,7 @@
 const { ObjectId } = require("mongodb");
 
 const MongoWraper = require("mongoclienteasywrapper")(
-  "mongodb://knesys:knesysiot123@localhost:27018"
+  "mongodb://knesys:knesysiot123@localhost:27017"
 );
 
 const test = async () => {
@@ -31,4 +31,34 @@ const test = async () => {
   // );
   // console.log(status2);
 };
-test();
+
+const testGetNextSequenceValue = async () => {
+  console.log("Entre a la prueba");
+  const stadtus = await MongoWraper.UpsertMongo(
+    {
+      name: "folioPaseSalida",
+    },
+    {
+      name: "folioPaseSalida",
+    },
+    "counter",
+    "EMPRESAGUSTAVO8501348"
+  );
+
+  const getnext = await MongoWraper.GetNextSequenceValue(
+    {
+      name: "folioPaseSalida",
+    },
+    "counter",
+    "EMPRESAGUSTAVO8501348"
+  );
+
+  // const status2 = await MongoWraper.FindIDOne(
+  //   "624e09075bda143a913c5d61",
+  //   "new",
+  //   "tracsadb"
+  // );
+  // console.log(status2);
+};
+testGetNextSequenceValue();
+// test();

@@ -297,6 +297,7 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
     newProperties = ConvertDatetoDatetime(newProperties);
+    //cro que esto esta de mas poir que ya esta la funcion de arriba
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
         return { ...acum, [property]: ObjectId(query[property]) };
@@ -312,6 +313,24 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
     var newvalues = { $set: newProperties };
     let result = await dbo.collection(collection).updateOne(query, newvalues);
     await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
+async function UpsertMongo(query, newProperties, collection) {
+  try {
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(mongoDb);
+    var newvalues = { $set: newProperties };
+    let result = await dbo
+      .collection(collection)
+      .updateOne(query, newvalues, { upsert: true });
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
     return result;
   } catch (error) {
     console.log(error);
@@ -564,6 +583,27 @@ async function FindOneLast(query, sortobj, collection, databaseName) {
     return [];
   }
 }
+async function GetNextSequenceValue(query, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo
+      .collection(collection)
+      .findOneAndUpdate(
+        query,
+        { $inc: { sequence_value: 1 } },
+        { upsert: true }
+      );
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
+    return result.sequence_value;
+  } catch (error) {
+    console.log(error.message);
+    return null;
+  }
+}
+
 async function GetLastMongo(limit, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -1104,6 +1144,7 @@ module.exports = function (connectionString, defaultDbName) {
   mongo = { uri: connectionString };
   mongoDb = defaultDbName;
   return {
+    GetNextSequenceValue: GetNextSequenceValue,
     UpdateMongoManyPull: UpdateMongoManyPull,
     UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
     UpdateMongoBy_idPush: UpdateMongoBy_idPush,
@@ -1114,6 +1155,7 @@ module.exports = function (connectionString, defaultDbName) {
     FindOneLast: FindOneLast,
     AggregationMongo: AggregationMongo,
     UpdateMongo: UpdateMongo,
+    UpsertMongo: UpsertMongo,
     UpdateMongoBy_id: UpdateMongoBy_id,
     UpdateBy_idPush_id: UpdateBy_idPush_id,
     FindOne: FindOne,
