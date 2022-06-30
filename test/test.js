@@ -49,10 +49,12 @@ const testGetNextSequenceValue = async () => {
     {
       name: "folioPaseSalida",
     },
+    1,
     "counter",
     "EMPRESAGUSTAVO8501348"
   );
-
+  console.log(getnext);
+  console.log("fue esto?");
   // const status2 = await MongoWraper.FindIDOne(
   //   "624e09075bda143a913c5d61",
   //   "new",

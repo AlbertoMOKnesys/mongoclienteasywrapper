@@ -583,7 +583,12 @@ async function FindOneLast(query, sortobj, collection, databaseName) {
     return [];
   }
 }
-async function GetNextSequenceValue(query, collection, databaseName) {
+async function GetNextSequenceValue(
+  query,
+  increment,
+  collection,
+  databaseName
+) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
@@ -592,12 +597,12 @@ async function GetNextSequenceValue(query, collection, databaseName) {
       .collection(collection)
       .findOneAndUpdate(
         query,
-        { $inc: { sequence_value: 1 } },
+        { $inc: { sequence_value: increment } },
         { upsert: true }
       );
     await db.close();
     //console.log(util.inspect(result, false, null, true /* enable colors */))
-    return result.sequence_value;
+    return result.value.sequence_value;
   } catch (error) {
     console.log(error.message);
     return null;
