@@ -319,12 +319,13 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
     return [];
   }
 }
-async function UpsertMongo(query, newProperties, collection) {
+async function UpsertMongo(query, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
     newProperties = ConvertDatetoDatetime(newProperties);
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
-    const dbo = db.db(mongoDb);
+    const dbo = db.db(DatabaseName);
     var newvalues = { $set: newProperties };
     let result = await dbo
       .collection(collection)
