@@ -110,6 +110,22 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     return [];
   }
 }
+async function InsertIndexUnique(index, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo
+      .collection(collection)
+      .createIndex(index, { unique: true });
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 
 async function Distinct(query, collection, databaseName) {
   try {
@@ -1167,6 +1183,7 @@ module.exports = function (connectionString, defaultDbName) {
     FindOne: FindOne,
     FindIDOne: FindIDOne,
     GetAll: GetAll,
+    InsertIndexUnique: InsertIndexUnique,
     SavetoMongoCallback: SavetoMongoCallback,
     SavetoMongo: SavetoMongo,
     DropCollection: DropCollection,
