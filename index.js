@@ -91,10 +91,6 @@ const ConvertDatetoDatetime = (objectToSave) =>
 
 async function SavetoMongo(objectToSave, collection, databaseName) {
   try {
-    // revisar si existe alguna propiedad que sea ObjectId
-    const properties = Object.keys(objectToSave);
-    const allKeys = properties.filter((property) => property.includes("_id"));
-    console.log();
     objectToSave = ConvertIdtoObjectId(objectToSave);
     objectToSave = ConvertDatetoDatetime(objectToSave);
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -103,6 +99,29 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     });
     const dbo = db.db(DatabaseName);
     let result = await dbo.collection(collection).insertOne(objectToSave);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
+async function SavetoMongoMany(arrToSave, collection, databaseName) {
+  try {
+    // revisar si existe alguna propiedad que sea ObjectId
+
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertIdtoObjectId(objectToSave)
+    );
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertDatetoDatetime(objectToSave)
+    );
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo.collection(collection).insert(arrToSave);
     await db.close();
     return result;
   } catch (error) {
@@ -1185,6 +1204,7 @@ module.exports = function (connectionString, defaultDbName) {
     GetAll: GetAll,
     InsertIndexUnique: InsertIndexUnique,
     SavetoMongoCallback: SavetoMongoCallback,
+    SavetoMongoMany: SavetoMongoMany,
     SavetoMongo: SavetoMongo,
     DropCollection: DropCollection,
     DeleteMongoCallback: DeleteMongoCallback,
