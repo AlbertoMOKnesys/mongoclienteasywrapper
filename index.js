@@ -398,6 +398,30 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
     return [];
   }
 }
+async function UpdateMongoManyRename(
+  query,
+  newProperties,
+  collection,
+  databaseName
+) {
+  try {
+    // newProperties = ConvertIdtoObjectId(newProperties);
+    // newProperties = ConvertDatetoDatetime(newProperties);
+
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    var newvalues = { $rename: newProperties };
+    let result = await dbo.collection(collection).updateMany(query, newvalues);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 
 async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
@@ -1193,6 +1217,7 @@ module.exports = function (connectionString, defaultDbName) {
       UpdateMongoManyPullIDToCollectionPull,
     UpdateMongoManyBy_idPull,
     UpdateMongoMany: UpdateMongoMany,
+    UpdateMongoManyRename: UpdateMongoManyRename,
     FindOneLast: FindOneLast,
     AggregationMongo: AggregationMongo,
     UpdateMongo: UpdateMongo,
