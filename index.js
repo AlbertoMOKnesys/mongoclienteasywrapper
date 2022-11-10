@@ -131,8 +131,12 @@ async function SavetoMongoMany(arrToSave, collection, databaseName) {
 }
 async function SaveManyBatch(objectToSave, collection, databaseName) {
   try {
-    objectToSave = ConvertIdtoObjectId(objectToSave);
-    objectToSave = ConvertDatetoDatetime(objectToSave);
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertIdtoObjectId(objectToSave)
+    );
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertDatetoDatetime(objectToSave)
+    );
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     let db = await MongoClient.connect(mongo.uri, {
       useUnifiedTopology: true,
