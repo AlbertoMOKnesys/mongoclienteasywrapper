@@ -129,6 +129,23 @@ async function SavetoMongoMany(arrToSave, collection, databaseName) {
     return [];
   }
 }
+async function SaveManyBatch(objectToSave, collection, databaseName) {
+  try {
+    objectToSave = ConvertIdtoObjectId(objectToSave);
+    objectToSave = ConvertDatetoDatetime(objectToSave);
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo.collection(collection).insertMany(objectToSave);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 async function InsertIndexUnique(index, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -1231,6 +1248,7 @@ module.exports = function (connectionString, defaultDbName) {
     SavetoMongoCallback: SavetoMongoCallback,
     SavetoMongoMany: SavetoMongoMany,
     SavetoMongo: SavetoMongo,
+    SaveManyBatch: SaveManyBatch,
     DropCollection: DropCollection,
     DeleteMongoCallback: DeleteMongoCallback,
     DeleteMongo: DeleteMongo,
