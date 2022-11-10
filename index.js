@@ -129,7 +129,7 @@ async function SavetoMongoMany(arrToSave, collection, databaseName) {
     return [];
   }
 }
-async function SaveManyBatch(objectToSave, collection, databaseName) {
+async function SaveManyBatch(arrToSave, collection, databaseName) {
   try {
     arrToSave = arrToSave.map((objectToSave) =>
       ConvertIdtoObjectId(objectToSave)
@@ -142,7 +142,7 @@ async function SaveManyBatch(objectToSave, collection, databaseName) {
       useUnifiedTopology: true,
     });
     const dbo = db.db(DatabaseName);
-    let result = await dbo.collection(collection).insertMany(objectToSave);
+    let result = await dbo.collection(collection).insertMany(arrToSave);
     await db.close();
     return result;
   } catch (error) {
