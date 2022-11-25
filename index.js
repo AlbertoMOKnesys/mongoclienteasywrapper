@@ -1202,6 +1202,21 @@ async function ND_FindIDOnePopulated(Id, collection, databaseName) {
     return {};
   }
 }
+async function Count(query, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo.collection(collection).count(query);
+    await db.close();
+    return result;
+  } catch (error) {
+    console.log(error.message);
+    return {};
+  }
+}
 async function UpdateMongoManyPull(
   query,
   propertiesRemove,
@@ -1274,6 +1289,7 @@ module.exports = function (connectionString, defaultDbName) {
     ND_FindMany: ND_FindMany,
     UpdateMongoManyBy_idAddToSet: UpdateMongoManyBy_idAddToSet,
     ND_FindOne: ND_FindOne,
+    Count: Count,
     getIndexs: getIndexs,
   };
 };
