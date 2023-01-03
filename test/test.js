@@ -1,8 +1,6 @@
 const { ObjectId } = require("mongodb");
 
-const MongoWraper = require("mongoclienteasywrapper")(
-  "mongodb://knesys:knesysiot123@52.248.41.72:27018"
-);
+const MongoWraper = require("mongoclienteasywrapper")("");
 
 const test = async () => {
   console.log("Entre a la prueba");
