@@ -1001,10 +1001,12 @@ async function PopulateAuto(query, collection, databaseName) {
         return result;
       }
     } else {
+      await db.close();
       // no hay ni un solo registro de esta consulta
       return [];
     }
   } catch (error) {
+    // await db.close();
     console.log(error.message);
     return [];
   }
