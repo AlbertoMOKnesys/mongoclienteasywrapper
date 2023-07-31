@@ -203,6 +203,33 @@ async function AggregationMongo(arrAggregation, collection, databaseName) {
     return [];
   }
 }
+async function AggregationMongoCursor(
+  arrAggregation,
+  collection,
+  databaseName
+) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, {
+      useUnifiedTopology: true,
+    });
+    const dbo = db.db(DatabaseName);
+    let result = dbo
+      .collection(collection)
+      .aggregate(arrAggregation, { cursor: { batchSize: 100 } });
+    // await db.close();
+
+    return {
+      cursor: result,
+      closeConnection: () => {
+        db.close();
+      },
+    };
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 
 async function DeleteMongo(query, collection, databaseName) {
   try {
@@ -1251,6 +1278,7 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyPull: UpdateMongoManyPull,
     UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
     UpdateMongoBy_idPush: UpdateMongoBy_idPush,
+    AggregationMongoCursor: AggregationMongoCursor,
     UpdateMongoManyPullIDToCollectionPull:
       UpdateMongoManyPullIDToCollectionPull,
     UpdateMongoManyBy_idPull,
