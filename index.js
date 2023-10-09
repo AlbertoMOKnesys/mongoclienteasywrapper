@@ -691,6 +691,25 @@ async function FindOneLast(query, sortobj, collection, databaseName) {
     return [];
   }
 }
+async function FindOneLastTest(query, sortobj, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
+    const dbo = db.db(DatabaseName);
+    let result = await dbo
+      .collection(collection)
+      .sort(sortobj)
+      .find(query)
+      .limit(1)
+      .toArray();
+    await db.close();
+    //console.log(util.inspect(result, false, null, true /* enable colors */))
+    return result[0];
+  } catch (error) {
+    console.log(error.message);
+    return [];
+  }
+}
 async function GetNextSequenceValue(
   query,
   increment,
@@ -1320,6 +1339,7 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyBy_idAddToSet: UpdateMongoManyBy_idAddToSet,
     ND_FindOne: ND_FindOne,
     Count: Count,
+    FindOneLastTest:FindOneLastTest,
     getIndexs: getIndexs,
   };
 };
