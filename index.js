@@ -679,8 +679,8 @@ async function FindOneLast(query, sortobj, collection, databaseName) {
     const dbo = db.db(DatabaseName);
     let result = await dbo
       .collection(collection)
-      .sort(sortobj)
       .find(query)
+      .sort(sortobj)
       .limit(1)
       .toArray();
     await db.close();
