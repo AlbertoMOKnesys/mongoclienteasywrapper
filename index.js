@@ -1,10 +1,9 @@
 // mongofunctions.js
-var mongo;
-var mongoDb;
-const { MongoClient, Timestamp } = require("mongodb");
+let mongo;
+let mongoDb;
+const { MongoClient, ObjectId } = require("mongodb");
 const { sizeObj } = require("./common");
-const ObjectId = require("mongodb").ObjectId;
-const mongolib = require("mongodb");
+// const mongolib = require("mongodb");
 const operatorNotDeleted = { status: { $ne: "deleted" } };
 const tagDeleted = { status: "deleted" };
 
@@ -25,20 +24,44 @@ const Connect = (connectionString, defaultDbName) => {
   return true;
 };
 
-async function FindIDOne(Id, collection, databaseName) {
-  const DatabaseName = databaseName == null ? mongoDb : databaseName;
-  var o_id = new ObjectId(Id);
-  const query = { _id: o_id };
+let client;
+let db;
+
+async function connectToDatabase(connectionString, dbName) {
+  if (client && client.isConnected()) return;
+
+  client = new MongoClient(connectionString, { useUnifiedTopology: true });
+  await client.connect();
+  db = client.db(dbName);
+}
+
+async function AggregationMongo(arrAggregation, collection, databaseName) {
   try {
-    let db = await MongoClient.connect(mongo.uri, {
-      useUnifiedTopology: true,
-    });
-    const dbo = db.db(DatabaseName);
-    let result = await dbo.collection(collection).findOne(query);
-    await db.close();
+    await connectToDatabase(mongo.uri, databaseName || mongoDb);
+    const dbo = db.collection(collection);
+    const result = await dbo
+      .aggregate(arrAggregation, { allowDiskUse: true })
+      .toArray();
     return result;
   } catch (error) {
-    console.log(error.message);
+    console.error("Aggregation error:", error);
+    return [];
+  }
+}
+
+async function FindIDOne(Id, collection, databaseName) {
+  // Configura el nombre de la base de datos
+  const DatabaseName = databaseName || mongoDb;
+
+  // Crea el objeto de búsqueda
+  const query = { _id: new ObjectId(Id) };
+
+  try {
+    await connectToDatabase(mongo.uri, DatabaseName);
+    const result = await db.collection(collection).findOne(query);
+    return result;
+  } catch (error) {
+    console.error("FindIDOne error:", error.message);
     return {};
   }
 }
@@ -185,24 +208,6 @@ async function Distinct(query, collection, databaseName) {
   }
 }
 
-async function AggregationMongo(arrAggregation, collection, databaseName) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    let db = await MongoClient.connect(mongo.uri, {
-      useUnifiedTopology: true,
-    });
-    const dbo = db.db(DatabaseName);
-    let result = await dbo
-      .collection(collection)
-      .aggregate(arrAggregation, { allowDiskUse: true })
-      .toArray();
-    await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
 async function AggregationMongoCursor(
   arrAggregation,
   collection,
@@ -1274,87 +1279,53 @@ module.exports = function (connectionString, defaultDbName) {
   // Connect=Connect;
   mongo = { uri: connectionString };
   mongoDb = defaultDbName;
+
   return {
-    GetNextSequenceValue: GetNextSequenceValue,
-    UpdateMongoManyPull: UpdateMongoManyPull,
-    UpdateMongoManyBy_idPush: UpdateMongoManyBy_idPush,
-    UpdateMongoBy_idPush: UpdateMongoBy_idPush,
-    AggregationMongoCursor: AggregationMongoCursor,
-    UpdateMongoManyPullIDToCollectionPull:
-      UpdateMongoManyPullIDToCollectionPull,
+    AggregationMongo,
+    AggregationMongoCursor,
+    Count,
+    DeleteMongo,
+    DeleteMongoby_id,
+    DeleteMongoCallback,
+    Distinct,
+    DropCollection,
+    FindIDOne,
+    FindIDOnePopulated,
+    FindLimitLast,
+    FindMany,
+    FindManyLimit,
+    FindOne,
+    FindOneLast,
+    FindPaginated,
+    GetAll,
+    getIndexs,
+    GetLastMongo,
+    GetNextSequenceValue,
+    InsertIndexUnique,
+    ND_DeleteMongoby_id,
+    ND_FindIDOnePopulated,
+    ND_FindMany,
+    ND_FindOne,
+    ND_FindPaginated,
+    ND_PopulateAuto,
+    Populate,
+    PopulateAuto,
+    SaveManyBatch,
+    SavetoMongo,
+    SavetoMongoCallback,
+    SavetoMongoMany,
+    UpdateBy_idPush_id,
+    UpdateMongo,
+    UpdateMongoBy_id,
+    UpdateMongoBy_idPush,
+    UpdateMongoBy_idRemoveProperty,
+    UpdateMongoMany,
+    UpdateMongoManyBy_idAddToSet,
     UpdateMongoManyBy_idPull,
-    UpdateMongoMany: UpdateMongoMany,
-    UpdateMongoManyRename: UpdateMongoManyRename,
-    FindOneLast: FindOneLast,
-    AggregationMongo: AggregationMongo,
-    UpdateMongo: UpdateMongo,
-    UpsertMongo: UpsertMongo,
-    UpdateMongoBy_id: UpdateMongoBy_id,
-    UpdateBy_idPush_id: UpdateBy_idPush_id,
-    FindOne: FindOne,
-    FindIDOne: FindIDOne,
-    GetAll: GetAll,
-    InsertIndexUnique: InsertIndexUnique,
-    SavetoMongoCallback: SavetoMongoCallback,
-    SavetoMongoMany: SavetoMongoMany,
-    SavetoMongo: SavetoMongo,
-    SaveManyBatch: SaveManyBatch,
-    DropCollection: DropCollection,
-    DeleteMongoCallback: DeleteMongoCallback,
-    DeleteMongo: DeleteMongo,
-    Distinct: Distinct,
-    DeleteMongoby_id: DeleteMongoby_id,
-    GetLastMongo: GetLastMongo,
-    FindManyLimit: FindManyLimit,
-    FindMany: FindMany,
-    FindLimitLast: FindLimitLast,
-    Populate: Populate,
-    PopulateAuto: PopulateAuto,
-    FindPaginated: FindPaginated,
-    FindIDOnePopulated: FindIDOnePopulated,
-    UpdateMongoBy_idRemoveProperty: UpdateMongoBy_idRemoveProperty,
-    ND_FindPaginated: ND_FindPaginated,
-    ND_PopulateAuto: ND_PopulateAuto,
-    ND_FindIDOnePopulated: ND_FindIDOnePopulated,
-    ND_DeleteMongoby_id: ND_DeleteMongoby_id,
-    ND_FindMany: ND_FindMany,
-    UpdateMongoManyBy_idAddToSet: UpdateMongoManyBy_idAddToSet,
-    ND_FindOne: ND_FindOne,
-    Count: Count,
-    getIndexs: getIndexs,
+    UpdateMongoManyBy_idPush,
+    UpdateMongoManyPull,
+    UpdateMongoManyPullIDToCollectionPull,
+    UpdateMongoManyRename,
+    UpsertMongo,
   };
 };
-// exports.Connect=Connect;
-// exports.UpdateMongoManyBy_idPush = UpdateMongoManyBy_idPush;
-// exports.UpdateMongoMany = UpdateMongoMany;
-// exports.AggregationMongo = AggregationMongo;
-// exports.UpdateMongo = UpdateMongo;
-// exports.UpdateMongoBy_id = UpdateMongoBy_id;
-// exports.UpdateBy_idPush_id = UpdateBy_idPush_id;
-// exports.FindOne = FindOne;
-// exports.FindIDOne = FindIDOne;
-// exports.GetAll = GetAll;
-// exports.SavetoMongoCallback = SavetoMongoCallback;
-// exports.SavetoMongo = SavetoMongo;
-// exports.DropCollection = DropCollection;
-// exports.DeleteMongoCallback = DeleteMongoCallback;
-// exports.DeleteMongo = DeleteMongo;
-// exports.DeleteMongoby_id = DeleteMongoby_id;
-// exports.GetLastMongo = GetLastMongo;
-// exports.FindManyLimit = FindManyLimit;
-// exports.FindMany = FindMany;
-// exports.FindLimitLast = FindLimitLast;
-// exports.Populate = Populate;
-// exports.PopulateAuto = PopulateAuto;
-// exports.FindPaginated = FindPaginated;
-// exports.FindIDOnePopulated = FindIDOnePopulated;
-// exports.UpdateMongoBy_idRemoveProperty = UpdateMongoBy_idRemoveProperty;
-// exports.UpdateMongoBy_idPush = UpdateMongoBy_idPush;
-// exports.ND_FindPaginated = ND_FindPaginated;
-// exports.ND_PopulateAuto = ND_PopulateAuto;
-// exports.ND_FindIDOnePopulated = ND_FindIDOnePopulated;
-// exports.ND_DeleteMongoby_id = ND_DeleteMongoby_id;
-// exports.ND_FindMany = ND_FindMany;
-// exports.UpdateMongoManyBy_idAddToSet = UpdateMongoManyBy_idAddToSet;
-// exports.ND_FindOne = ND_FindOne;
-// exports.getIndexs = getIndexs;
