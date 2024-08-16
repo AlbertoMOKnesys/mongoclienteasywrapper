@@ -14,7 +14,7 @@
     "mongoclient",
     "wrapper"
   ],
-  "author": "Alberto Martinez,Gustavo Luna,Taylor Gonzales,Jose Tello",
+  "author": "Alberto Martinez, Gustavo Luna, Christopher Taylor Gonzalez, Jose Tello",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper/issues"
