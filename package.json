@@ -1,6 +1,6 @@
 {
   "name": "mongoclienteasywrapper",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "Easy wrapper for mongoclient",
   "main": "index.js",
   "scripts": {
