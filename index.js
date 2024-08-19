@@ -7,46 +7,15 @@ const { sizeObj } = require("./common");
 const operatorNotDeleted = { status: { $ne: "deleted" } };
 const tagDeleted = { status: "deleted" };
 
-const Connect = (connectionString, defaultDbName) => {
-  mongo = { uri: connectionString };
-  mongoDb = defaultDbName;
-  console.log("Conecting...");
-  // try {
-  //     let db = await MongoClient.connect(mongo.uri, {
-  //       useUnifiedTopology: true,
-  //     });
-  //     await db.close();
-  //     return true;
-  //   } catch (error) {
-  //     console.log(error.message);
-  //     return false
-  //   }
-  return true;
-};
-
 let client;
 let db;
 
 async function connectToDatabase(connectionString, dbName) {
-  if (client && client.isConnected()) return;
+  if (client && client.topology && client.topology.isConnected()) return;
 
   client = new MongoClient(connectionString, { useUnifiedTopology: true });
   await client.connect();
   db = client.db(dbName);
-}
-
-async function AggregationMongo(arrAggregation, collection, databaseName) {
-  try {
-    await connectToDatabase(mongo.uri, databaseName || mongoDb);
-    const dbo = db.collection(collection);
-    const result = await dbo
-      .aggregate(arrAggregation, { allowDiskUse: true })
-      .toArray();
-    return result;
-  } catch (error) {
-    console.error("Aggregation error:", error);
-    return [];
-  }
 }
 
 async function FindIDOne(Id, collection, databaseName) {
@@ -65,6 +34,37 @@ async function FindIDOne(Id, collection, databaseName) {
     return {};
   }
 }
+
+async function AggregationMongo(arrAggregation, collection, databaseName) {
+  try {
+    await connectToDatabase(mongo.uri, databaseName || mongoDb);
+    const dbo = db.collection(collection);
+    const result = await dbo
+      .aggregate(arrAggregation, { allowDiskUse: true })
+      .toArray();
+    return result;
+  } catch (error) {
+    console.error("Aggregation error:", error);
+    return [];
+  }
+}
+
+const Connect = (connectionString, defaultDbName) => {
+  mongo = { uri: connectionString };
+  mongoDb = defaultDbName;
+  console.log("Conecting...");
+  // try {
+  //     let db = await MongoClient.connect(mongo.uri, {
+  //       useUnifiedTopology: true,
+  //     });
+  //     await db.close();
+  //     return true;
+  //   } catch (error) {
+  //     console.log(error.message);
+  //     return false
+  //   }
+  return true;
+};
 
 function SavetoMongoCallback(objectToSave, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
