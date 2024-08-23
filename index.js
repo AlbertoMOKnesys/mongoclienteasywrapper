@@ -11,22 +11,72 @@ let client;
 let db;
 
 async function connectToDatabase(connectionString, dbName) {
+  // Check if a connection is already established and is still active
   if (client && client.topology && client.topology.isConnected()) return;
 
+  // Create a new MongoClient instance with the provided connection string
   client = new MongoClient(connectionString, { useUnifiedTopology: true });
+
+  // Connect to the MongoDB server
   await client.connect();
+
+  // Set the database reference
   db = client.db(dbName);
 }
 
-async function FindIDOne(Id, collection, databaseName) {
-  // Configura el nombre de la base de datos
-  const DatabaseName = databaseName || mongoDb;
-
-  // Crea el objeto de búsqueda
-  const query = { _id: new ObjectId(Id) };
-
+async function AggregationMongo(arrAggregation, collection, databaseName) {
   try {
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Ensure a connection to the database is established
     await connectToDatabase(mongo.uri, DatabaseName);
+
+    // Get a reference to the specified collection
+    const dbo = db.collection(collection);
+
+    // Execute the aggregation pipeline and return the results as an array
+    const result = await dbo
+      .aggregate(arrAggregation, { allowDiskUse: true })
+      .toArray();
+    return result;
+  } catch (error) {
+    // Log any errors that occur during the aggregation process
+    console.error("Aggregation error:", error);
+    return [];
+  }
+}
+
+async function DeleteMongoby_id(_id, collection, databaseName) {
+  try {
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Create the search object
+    const query = { _id: new ObjectId(Id) };
+
+    // Connect to the database
+    await connectToDatabase(mongo.uri, DatabaseName);
+
+    const result = await dbo.collection(collection).deleteOne(query);
+    return result;
+  } catch (error) {
+    console.error("DeleteMongoby_id error:", error.message);
+    return [];
+  }
+}
+
+async function FindIDOne(Id, collection, databaseName) {
+  try {
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Create the search object
+    const query = { _id: new ObjectId(Id) };
+
+    // Connect to the database
+    await connectToDatabase(mongo.uri, DatabaseName);
+
     const result = await db.collection(collection).findOne(query);
     return result;
   } catch (error) {
@@ -35,17 +85,27 @@ async function FindIDOne(Id, collection, databaseName) {
   }
 }
 
-async function AggregationMongo(arrAggregation, collection, databaseName) {
+async function SavetoMongo(objectToSave, collection, databaseName) {
   try {
-    await connectToDatabase(mongo.uri, databaseName || mongoDb);
-    const dbo = db.collection(collection);
-    const result = await dbo
-      .aggregate(arrAggregation, { allowDiskUse: true })
-      .toArray();
+    // Convert IDs and dates if necessary
+    objectToSave = ConvertIdtoObjectId(objectToSave);
+    objectToSave = ConvertDatetoDatetime(objectToSave);
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    await connectToDatabase(mongo.uri, DatabaseName);
+
+    // Insert the object into the collection
+    const result = await db.collection(collection).insertOne(objectToSave);
+
+    // Return the result of the insertion
     return result;
   } catch (error) {
-    console.error("Aggregation error:", error);
-    return [];
+    // Log the error and return null if the operation fails
+    console.error("SavetoMongo error:", error.message);
+    return null;
   }
 }
 
@@ -112,23 +172,6 @@ const ConvertDatetoDatetime = (objectToSave) =>
     }
   }, {});
 
-async function SavetoMongo(objectToSave, collection, databaseName) {
-  try {
-    objectToSave = ConvertIdtoObjectId(objectToSave);
-    objectToSave = ConvertDatetoDatetime(objectToSave);
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    let db = await MongoClient.connect(mongo.uri, {
-      useUnifiedTopology: true,
-    });
-    const dbo = db.db(DatabaseName);
-    let result = await dbo.collection(collection).insertOne(objectToSave);
-    await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
 async function SavetoMongoMany(arrToSave, collection, databaseName) {
   try {
     // revisar si existe alguna propiedad que sea ObjectId
@@ -244,23 +287,6 @@ async function DeleteMongo(query, collection, databaseName) {
     });
     const dbo = db.db(DatabaseName);
     let result = await dbo.collection(collection).deleteMany(query);
-    await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function DeleteMongoby_id(_id, collection, databaseName) {
-  try {
-    const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    let db = await MongoClient.connect(mongo.uri, {
-      useUnifiedTopology: true,
-    });
-    const dbo = db.db(DatabaseName);
-    let result = await dbo.collection(collection).deleteOne(query);
     await db.close();
     return result;
   } catch (error) {
