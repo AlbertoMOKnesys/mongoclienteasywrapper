@@ -103,6 +103,7 @@ const runTests = async () => {
   await testDeleteMongoby_id();
 
   // Exit the process after all tests are complete
+  console.log("All tests passed successfully. \n");
   process.exit(0);
 };
 
