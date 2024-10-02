@@ -52,7 +52,7 @@ async function DeleteMongoby_id(_id, collection, databaseName) {
     // Set the database name
     const DatabaseName = databaseName || mongoDb;
 
-    // Create the search object
+    // Create the search object database is established
     const query = { _id: new ObjectId(Id) };
 
     // Connect to the database
@@ -109,6 +109,78 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
+const ConvertIdtoObjectId = (objectToSave) => {
+  return Object.keys(objectToSave).reduce((acum, property) => {
+    const value = objectToSave[property];
+
+    // Check if the property contains '_id'
+    if (property.includes("_id")) {
+      // If it's an array, map over and convert each element to ObjectId
+      if (Array.isArray(value)) {
+        acum[property] = value.map((element) => new ObjectId(element));
+      } else {
+        // Otherwise, convert the value directly to ObjectId
+        acum[property] = new ObjectId(value);
+      }
+    } else {
+      // For other properties, simply assign the value
+      acum[property] = value;
+    }
+
+    return acum;
+  }, {});
+};
+
+const ConvertDatetoDatetime = (objectToSave) => {
+  return Object.keys(objectToSave).reduce((acum, property) => {
+    const value = objectToSave[property];
+
+    // Check if the property contains '_datetime'
+    if (property.includes("_datetime")) {
+      // If it's an array, convert each element to a Date object
+      if (Array.isArray(value)) {
+        acum[property] = value.map((element) => new Date(element));
+      } else {
+        // Otherwise, convert the single value to a Date object
+        acum[property] = new Date(value);
+      }
+    } else {
+      // For other properties, assign the value as is
+      acum[property] = value;
+    }
+
+    return acum;
+  }, {});
+};
+
+async function SavetoMongoMany(arrToSave, collection, databaseName) {
+  try {
+    // check if there is any property that is ObjectId
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertIdtoObjectId(objectToSave)
+    );
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertDatetoDatetime(objectToSave)
+    );
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    await connectToDatabase(mongo.uri, DatabaseName);
+
+    // Insert the array of objects into the collection
+    const result = await db.collection(collection).insert(arrToSave);
+
+    // Return the result of the insertion
+    return result;
+  } catch (error) {
+    // Log the error and return null if the operation fails
+    console.log("SavetoMongoMany error:", error.message);
+    return [];
+  }
+}
+
 const Connect = (connectionString, defaultDbName) => {
   mongo = { uri: connectionString };
   mongoDb = defaultDbName;
@@ -138,63 +210,6 @@ function SavetoMongoCallback(objectToSave, collection, databaseName) {
   });
 }
 
-const ConvertIdtoObjectId = (objectToSave) =>
-  Object.keys(objectToSave).reduce((acum, property) => {
-    if (property.includes("_id")) {
-      if (Array.isArray(objectToSave[property])) {
-        return {
-          ...acum,
-          [property]: objectToSave[property].map(
-            (elementToConvert) => new ObjectId(elementToConvert)
-          ),
-        };
-      }
-      return { ...acum, [property]: new ObjectId(objectToSave[property]) };
-    } else {
-      return { ...acum, [property]: objectToSave[property] };
-    }
-  }, {});
-
-const ConvertDatetoDatetime = (objectToSave) =>
-  Object.keys(objectToSave).reduce((acum, property) => {
-    if (property.includes("_datetime")) {
-      if (Array.isArray(objectToSave[property])) {
-        return {
-          ...acum,
-          [property]: objectToSave[property].map(
-            (elementToConvert) => new Date(elementToConvert)
-          ),
-        };
-      }
-      return { ...acum, [property]: new Date(objectToSave[property]) };
-    } else {
-      return { ...acum, [property]: objectToSave[property] };
-    }
-  }, {});
-
-async function SavetoMongoMany(arrToSave, collection, databaseName) {
-  try {
-    // revisar si existe alguna propiedad que sea ObjectId
-
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertIdtoObjectId(objectToSave)
-    );
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertDatetoDatetime(objectToSave)
-    );
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    let db = await MongoClient.connect(mongo.uri, {
-      useUnifiedTopology: true,
-    });
-    const dbo = db.db(DatabaseName);
-    let result = await dbo.collection(collection).insert(arrToSave);
-    await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
 async function SaveManyBatch(arrToSave, collection, databaseName) {
   try {
     arrToSave = arrToSave.map((objectToSave) =>
@@ -216,6 +231,7 @@ async function SaveManyBatch(arrToSave, collection, databaseName) {
     return [];
   }
 }
+
 async function InsertIndexUnique(index, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
