@@ -2,19 +2,22 @@
 let mongo;
 let mongoDb;
 const { MongoClient, ObjectId } = require("mongodb");
+const { sizeObj } = require("./common");
 const mongoDBConnectionManager = require("./mongoDBConnectionManager");
+// const mongolib = require("mongodb");
 const operatorNotDeleted = { status: { $ne: "deleted" } };
 const tagDeleted = { status: "deleted" };
+
+// let mongoClient;
 
 async function getMongoClient(dbName) {
   // Asegúrate de que el cliente esté conectado
   if (!mongoDBConnectionManager.isConnected()) {
-    // console.log("Estableciendo nueva conexión...");
+    console.log("Conexión no encontrada. Estableciendo nueva conexión...");
     await mongoDBConnectionManager.connect(mongo.uri);
+  } else {
+    console.log("Conexión ya existente. Reutilizándola...");
   }
-  // else {
-  //   console.log("Reutilizándo conexión...");
-  // }
 
   // Obtén la conexión para la base de datos solicitada
   return await mongoDBConnectionManager.getDatabase(dbName);
@@ -25,9 +28,8 @@ async function AggregationMongo(arrAggregation, collection, databaseName) {
     // Set the database name
     const DatabaseName = databaseName || mongoDb;
 
-    // Connect to the database
     const db = await getMongoClient(DatabaseName);
-
+    // const db = client.db(DatabaseName);
     // Get a reference to the specified collection
     const dbo = db.collection(collection);
 
@@ -43,51 +45,7 @@ async function AggregationMongo(arrAggregation, collection, databaseName) {
   }
 }
 
-const ConvertIdtoObjectId = (objectToSave) => {
-  return Object.keys(objectToSave).reduce((acum, property) => {
-    const value = objectToSave[property];
-
-    // Check if the property contains '_id'
-    if (property.includes("_id")) {
-      // If it's an array, map over and convert each element to ObjectId
-      if (Array.isArray(value)) {
-        acum[property] = value.map((element) => new ObjectId(element));
-      } else {
-        // Otherwise, convert the value directly to ObjectId
-        acum[property] = new ObjectId(value);
-      }
-    } else {
-      // For other properties, simply assign the value
-      acum[property] = value;
-    }
-
-    return acum;
-  }, {});
-};
-
-const ConvertDatetoDatetime = (objectToSave) => {
-  return Object.keys(objectToSave).reduce((acum, property) => {
-    const value = objectToSave[property];
-
-    // Check if the property contains '_datetime'
-    if (property.includes("_datetime")) {
-      // If it's an array, convert each element to a Date object
-      if (Array.isArray(value)) {
-        acum[property] = value.map((element) => new Date(element));
-      } else {
-        // Otherwise, convert the single value to a Date object
-        acum[property] = new Date(value);
-      }
-    } else {
-      // For other properties, assign the value as is
-      acum[property] = value;
-    }
-
-    return acum;
-  }, {});
-};
-
-async function DeleteMongoby_id(Id, collection, databaseName) {
+async function DeleteMongoby_id(_id, collection, databaseName) {
   try {
     // Set the database name
     const DatabaseName = databaseName || mongoDb;
@@ -96,28 +54,13 @@ async function DeleteMongoby_id(Id, collection, databaseName) {
     const query = { _id: new ObjectId(Id) };
 
     // Connect to the database
+    // await connectToDatabase(mongo.uri, DatabaseName);
     const db = await getMongoClient(DatabaseName);
 
     const result = await db.collection(collection).deleteOne(query);
     return result;
   } catch (error) {
     console.error("DeleteMongoby_id error:", error.message);
-    return [];
-  }
-}
-
-async function DeleteMongo(query, collection, databaseName) {
-  try {
-    // Set the database name
-    const DatabaseName = databaseName || mongoDb;
-
-    // Connect to the database
-    const db = await getMongoClient(DatabaseName);
-
-    const result = await db.collection(collection).deleteMany(query);
-    return result;
-  } catch (error) {
-    console.error("DeleteMongo error:", error.message);
     return [];
   }
 }
@@ -131,143 +74,14 @@ async function FindIDOne(Id, collection, databaseName) {
     const query = { _id: new ObjectId(Id) };
 
     // Connect to the database
+    // await connectToDatabase(mongo.uri, DatabaseName);
     const db = await getMongoClient(DatabaseName);
 
     const result = await db.collection(collection).findOne(query);
     return result;
   } catch (error) {
-    console.error("FindIDOne error:", error);
+    console.error("FindIDOne error:", error.message);
     return {};
-  }
-}
-
-async function ND_PopulateAuto(query, collection, databaseName) {
-  try {
-    // Set the database name
-    const DatabaseName = databaseName || mongoDb;
-
-    query = Object.keys(query).reduce((acum, property) => {
-      if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
-      } else {
-        return { ...acum, [property]: query[property] };
-      }
-    }, {});
-
-    const queryNotDeletes = { ...query, ...operatorNotDeleted };
-
-    // Connect to the database
-    const db = await getMongoClient(DatabaseName);
-
-    // para obtener el arreglo de todas las properties que contienen la coleccion
-    var allKeys = new Set(); // new set es para guardar unicamente una vez(no duplicados)
-    let properties = [];
-    await db
-      .collection(collection)
-      .find()
-      .forEach(function (o) {
-        for (key in o) allKeys.add(key);
-      });
-    for (let key of allKeys) properties.push(key);
-
-    if (properties) {
-      // si hay almenos un documento
-      // const properties = Object.keys(doc[0]);
-      // queryNotDeletes
-      const allKeys = properties.filter((property) => property.includes("_id"));
-      if (allKeys.length > 1) {
-        /// existe almenos una referencia _id aparte del current _id
-        const aggregate = [{ $match: queryNotDeletes }];
-
-        const lookups = allKeys.slice(1).map((toJoin) => {
-          const collectionName = toJoin.replace("_id", "");
-          return {
-            $lookup: {
-              from: collectionName,
-              localField: toJoin,
-              foreignField: "_id",
-              as: collectionName,
-            },
-          };
-        });
-
-        aggregate.push(...lookups);
-        // if (Object.keys(query).length !== 0) {
-        //   lookup.push({ $match: query });
-        // }
-        let result = await db
-          .collection(collection)
-          .aggregate(aggregate)
-          .toArray();
-        // await db.close();
-        return result;
-      } else {
-        let result = await db
-          .collection(collection)
-          .find(queryNotDeletes)
-          .toArray();
-        // await db.close();
-        return result;
-      }
-    } else {
-      // no hay ni un solo registro de esta consulta
-      return [];
-    }
-  } catch (error) {
-    console.error("ND_PopulateAuto error:", error.message);
-    return [];
-  }
-}
-
-async function SaveManyBatch(arrToSave, collection, databaseName) {
-  try {
-    // Convert any new ObjectId and Date properties in the array
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertIdtoObjectId(objectToSave)
-    );
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertDatetoDatetime(objectToSave)
-    );
-
-    // Set the database name
-    const DatabaseName = databaseName || mongoDb;
-
-    // Connect to the database
-    const db = await getMongoClient(DatabaseName);
-
-    // Insert the array of objects into the collection using insertMany
-    let result = await db.collection(collection).insertMany(arrToSave);
-    return result;
-  } catch (error) {
-    console.error("SaveManyBatch error:", error.message);
-    return [];
-  }
-}
-
-async function SavetoMongoMany(arrToSave, collection, databaseName) {
-  try {
-    // Convert any new ObjectId and Date properties in the array
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertIdtoObjectId(objectToSave)
-    );
-    arrToSave = arrToSave.map((objectToSave) =>
-      ConvertDatetoDatetime(objectToSave)
-    );
-
-    // Set the database name
-    const DatabaseName = databaseName || mongoDb;
-
-    // Connect to the database
-    const db = await getMongoClient(DatabaseName);
-
-    // Insert the array of objects into the collection using insertMany
-    const result = await db.collection(collection).insertMany(arrToSave);
-
-    return result;
-  } catch (error) {
-    // Log the error and return an empty array if the operation fails
-    console.error("SavetoMongoMany error:", error.message);
-    return [];
   }
 }
 
@@ -281,6 +95,7 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
     const DatabaseName = databaseName || mongoDb;
 
     // Connect to the database
+    // await connectToDatabase(mongo.uri, DatabaseName);
     const db = await getMongoClient(DatabaseName);
 
     // Insert the object into the collection
@@ -295,7 +110,23 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
-// --- The following functions have not been cleaned yet, but they work ---
+// const Connect = (connectionString, defaultDbName) => {
+//   mongo = { uri: connectionString };
+//   mongoDb = defaultDbName;
+//   console.log("Conecting...");
+//   // try {
+//   //     let db = await MongoClient.connect(mongo.uri, {
+//   //       useUnifiedTopology: true,
+//   //     });
+//   //     await db.close();
+//   //     return true;
+//   //   } catch (error) {
+//   //     console.log(error.message);
+//   //     return false
+//   //   }
+//   return true;
+// };
+
 function SavetoMongoCallback(objectToSave, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
   MongoClient.connect(mongo.uri, { useUnifiedTopology: true }, (err, db) => {
@@ -308,6 +139,89 @@ function SavetoMongoCallback(objectToSave, collection, databaseName) {
   });
 }
 
+const ConvertIdtoObjectId = (objectToSave) =>
+  Object.keys(objectToSave).reduce((acum, property) => {
+    if (property.includes("_id")) {
+      if (Array.isArray(objectToSave[property])) {
+        return {
+          ...acum,
+          [property]: objectToSave[property].map(
+            (elementToConvert) => new ObjectId(elementToConvert)
+          ),
+        };
+      }
+      return { ...acum, [property]: new ObjectId(objectToSave[property]) };
+    } else {
+      return { ...acum, [property]: objectToSave[property] };
+    }
+  }, {});
+
+const ConvertDatetoDatetime = (objectToSave) =>
+  Object.keys(objectToSave).reduce((acum, property) => {
+    if (property.includes("_datetime")) {
+      if (Array.isArray(objectToSave[property])) {
+        return {
+          ...acum,
+          [property]: objectToSave[property].map(
+            (elementToConvert) => new Date(elementToConvert)
+          ),
+        };
+      }
+      return { ...acum, [property]: new Date(objectToSave[property]) };
+    } else {
+      return { ...acum, [property]: objectToSave[property] };
+    }
+  }, {});
+
+async function SavetoMongoMany(arrToSave, collection, databaseName) {
+  try {
+    // revisar si existe alguna propiedad que sea ObjectId
+
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertIdtoObjectId(objectToSave)
+    );
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertDatetoDatetime(objectToSave)
+    );
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    // let db = await MongoClient.connect(mongo.uri, {
+    //   useUnifiedTopology: true,
+    // });
+    // const dbo = db.db(DatabaseName);
+
+    const db = await getMongoClient(DatabaseName);
+
+    let result = await db.collection(collection).insert(arrToSave);
+    // await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
+async function SaveManyBatch(arrToSave, collection, databaseName) {
+  try {
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertIdtoObjectId(objectToSave)
+    );
+    arrToSave = arrToSave.map((objectToSave) =>
+      ConvertDatetoDatetime(objectToSave)
+    );
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    // let db = await MongoClient.connect(mongo.uri, {
+    //   useUnifiedTopology: true,
+    // });
+    // const dbo = db.db(DatabaseName);
+    const db = await getMongoClient(DatabaseName);
+
+    let result = await db.collection(collection).insertMany(arrToSave);
+    // await db.close();
+    return result;
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
 async function InsertIndexUnique(index, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -372,6 +286,24 @@ async function AggregationMongoCursor(
       //   db.close();
       // },
     };
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+}
+
+async function DeleteMongo(query, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    // let db = await MongoClient.connect(mongo.uri, {
+    //   useUnifiedTopology: true,
+    // });
+    // const dbo = db.db(DatabaseName);
+    const db = await getMongoClient(DatabaseName);
+
+    let result = await db.collection(collection).deleteMany(query);
+    // await db.close();
+    return result;
   } catch (error) {
     console.log(error);
     return [];
@@ -473,7 +405,7 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
     //cro que esto esta de mas poir que ya esta la funcion de arriba
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
+        return { ...acum, [property]: ObjectId(query[property]) };
       } else {
         return { ...acum, [property]: query[property] };
       }
@@ -489,7 +421,6 @@ async function UpdateMongo(query, newProperties, collection, databaseName) {
     return [];
   }
 }
-
 async function UpsertMongo(query, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
@@ -509,14 +440,13 @@ async function UpsertMongo(query, newProperties, collection, databaseName) {
     return [];
   }
 }
-
 async function UpdateMongoMany(query, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
     newProperties = ConvertDatetoDatetime(newProperties);
     query = Object.keys(query).reduce((acum, property) => {
       if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
+        return { ...acum, [property]: ObjectId(query[property]) };
       } else {
         return { ...acum, [property]: query[property] };
       }
@@ -533,7 +463,6 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
     return [];
   }
 }
-
 async function UpdateMongoManyRename(
   query,
   newProperties,
@@ -561,7 +490,7 @@ async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
     newProperties = ConvertIdtoObjectId(newProperties);
     newProperties = ConvertDatetoDatetime(newProperties);
-    const query = { _id: new ObjectId(_id) };
+    const query = { _id: ObjectId(_id) };
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     const db = await getMongoClient(DatabaseName);
 
@@ -595,14 +524,13 @@ async function UpdateMongoBy_idPush(
     return [];
   }
 }
-
 async function UpdateMongoManyBy_idPush(
   _idArr,
   newProperties,
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -618,14 +546,13 @@ async function UpdateMongoManyBy_idPush(
     return [];
   }
 }
-
 async function UpdateMongoManyBy_idAddToSet(
   _idArr,
   newProperties,
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -641,14 +568,13 @@ async function UpdateMongoManyBy_idAddToSet(
     return [];
   }
 }
-
 async function UpdateMongoManyBy_idPull(
   _idArr,
   newProperties,
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -664,7 +590,6 @@ async function UpdateMongoManyBy_idPull(
     return [];
   }
 }
-
 async function UpdateMongoManyPullIDToCollectionPull(
   query,
   collection,
@@ -686,7 +611,6 @@ async function UpdateMongoManyPullIDToCollectionPull(
     return [];
   }
 }
-
 async function UpdateMongoBy_idRemoveProperty(
   _id,
   property,
@@ -723,7 +647,7 @@ async function UpdateBy_idPush_id(
     const db = await getMongoClient(DatabaseName);
 
     var newvalues = {
-      $push: { [originCollection]: new ObjectId(new_id)() },
+      $push: { [originCollection]: new ObjectId(new_id) },
     };
     let result = await db.collection(collection).updateOne(query, newvalues);
     // await db.close();
@@ -746,7 +670,6 @@ function DeleteMongoCallback(idObjectToDelete, collection, databaseName) {
     });
   });
 }
-
 async function FindOneLast(query, sortobj, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -882,7 +805,6 @@ async function ND_FindMany(
     return [];
   }
 }
-
 async function FindMany(query, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -971,14 +893,13 @@ async function GetAll(collection, databaseName) {
     return [];
   }
 }
-
 async function FindLimitLast(query, limit, collection, databaseName) {
   try {
     const properties = Object.keys(query);
     const allKeys = properties.filter((property) => property.includes("_id"));
     allKeys.forEach((prop) => {
       console.log("entro almenos una vez: ", query[prop]);
-      query[prop] = new ObjectId(query[prop])();
+      query[prop] = new ObjectId(query[prop]);
     });
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     const db = await getMongoClient(DatabaseName);
@@ -1039,7 +960,7 @@ async function Populate(collection, databaseName, joinCollection) {
 async function PopulateAuto(query, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    if (query._id) query._id = new ObjectId(query._id)();
+    if (query._id) query._id = new ObjectId(query._id);
     const db = await getMongoClient(DatabaseName);
 
     var doc = await db.collection(collection).findOne(query);
@@ -1091,6 +1012,79 @@ async function PopulateAuto(query, collection, databaseName) {
   }
 }
 
+async function ND_PopulateAuto(query, collection, databaseName) {
+  try {
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    query = Object.keys(query).reduce((acum, property) => {
+      if (property.includes("_id")) {
+        return { ...acum, [property]: ObjectId(query[property]) };
+      } else {
+        return { ...acum, [property]: query[property] };
+      }
+    }, {});
+    const queryNotDeletes = { ...query, ...operatorNotDeleted };
+    const db = await getMongoClient(DatabaseName);
+
+
+    /// para obtener el arreglo de todas las properties que contienen la coleccion
+    var allKeys = new Set(); // new set es para guardar unicamente una vez(no duplicados)
+    let properties = [];
+    await db
+      .collection(collection)
+      .find()
+      .forEach(function (o) {
+        for (key in o) allKeys.add(key);
+      });
+    for (let key of allKeys) properties.push(key);
+
+    if (properties) {
+      /// si hay almenos un documento
+      // const properties = Object.keys(doc[0]);
+      //queryNotDeletes
+      const allKeys = properties.filter((property) => property.includes("_id"));
+      if (allKeys.length > 1) {
+        /// existe almenos una referencia _id aparte del current _id
+        const aggregate = [{ $match: queryNotDeletes }];
+
+        const lookups = allKeys.slice(1).map((toJoin) => {
+          const collectionName = toJoin.replace("_id", "");
+          return {
+            $lookup: {
+              from: collectionName,
+              localField: toJoin,
+              foreignField: "_id",
+              as: collectionName,
+            },
+          };
+        });
+
+        aggregate.push(...lookups);
+        // if (Object.keys(query).length !== 0) {
+        //   lookup.push({ $match: query });
+        // }
+        let result = await db
+          .collection(collection)
+          .aggregate(aggregate)
+          .toArray();
+        // await db.close();
+        return result;
+      } else {
+        let result = await db
+          .collection(collection)
+          .find(queryNotDeletes)
+          .toArray();
+        // await db.close();
+        return result;
+      }
+    } else {
+      // no hay ni un solo registro de esta consulta
+      return [];
+    }
+  } catch (error) {
+    console.log(error.message);
+    return [];
+  }
+}
 async function FindIDOnePopulated(Id, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
   var o_id = new ObjectId(Id);
@@ -1210,7 +1204,6 @@ async function ND_FindIDOnePopulated(Id, collection, databaseName) {
     return {};
   }
 }
-
 async function Count(query, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -1224,7 +1217,6 @@ async function Count(query, collection, databaseName) {
     return {};
   }
 }
-
 async function UpdateMongoManyPull(
   query,
   propertiesRemove,

@@ -1,6 +1,6 @@
 {
   "name": "mongoclienteasywrapper",
-  "version": "1.0.29",
+  "version": "1.1.1",
   "description": "Easy wrapper for mongoclient",
   "main": "index.js",
   "scripts": {
@@ -15,12 +15,29 @@
     "wrapper"
   ],
   "author": "Alberto Martinez, Gustavo Luna, Christopher Taylor Gonzalez, Jose Tello",
+  "contributors": [
+    {
+      "name": "Alberto Martinez",
+      "url": "https://github.com/AlbertoMOKnesys"
+    },
+    {
+      "name": "Christopher Taylor Gonzalez",
+      "email": "taylorgr@outlook.com",
+      "url": "https://github.com/taylorgr93"
+    },
+    {
+      "name": "Gustavo Luna"
+    },
+    {
+      "name": "Jose Tello"
+    }
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper/issues"
   },
   "homepage": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper#readme",
   "dependencies": {
-    "mongodb": "^4.5.0"
+    "mongodb": "^4.17.2"
   }
 }
