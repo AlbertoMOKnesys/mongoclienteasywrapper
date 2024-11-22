@@ -1,38 +1,65 @@
 // test.js
 const { ObjectId } = require("mongodb");
-const MongoWraper = require("mongoclienteasywrapper")(
-  // "mongodb://username:password@localhost:27017/DataBaseTest_MongoClientEasyWrapper"
+const MongoWraper = require("../index")(
   "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.3.0"
 );
 
 const testCollection = "testCollection";
+const testCollection2 = "testCollection2";
 const testDB = "testDB";
-const testIdDocument = "624e09075bda143a913c5d61";
+const testIdDocument1 = "624e09075bda143a913c5d61";
+const testIdDocument2 = "624e09075bda143a913c5d62";
+const testIdDocument3 = "624e09075bda143a913c5d63";
 
-const testAggregationMongo = async () => {
-  try {
-    console.log("Testing AggregationMongo");
+// Create a sample document to insert
+const arrayToSave = [
+  {
+    _id: ObjectId(testIdDocument1),
+    name: "Test Document 1",
+    status: "active",
+    datetime: new Date(),
+  },
+  {
+    _id: ObjectId(testIdDocument2),
+    name: "Test Document 2",
+    status: "active",
+    datetime: new Date(),
+  },
+  {
+    _id: ObjectId(testIdDocument3),
+    name: "Test Document 3",
+    status: "active",
+    datetime: new Date(),
+  },
+];
 
-    // Define an aggregation pipeline
-    const aggregationPipeline = [
-      { $match: { status: { $ne: "deleted" } } }, // Example stage to match documents where status is not "deleted"
-      { $group: { _id: "$category", total: { $sum: "$amount" } } }, // Example stage to group by category and sum amounts
-      { $sort: { total: -1 } }, // Example stage to sort results by total in descending order
-    ];
+const testIdDocument4 = "624e09075bda143a913c5d64";
+const testIdDocument5 = "624e09075bda143a913c5d65";
+const testIdDocument6 = "624e09075bda143a913c5d66";
 
-    // Call AggregationMongo with the pipeline, collection, and database
-    const result = await MongoWraper.AggregationMongo(
-      aggregationPipeline,
-      testCollection,
-      testDB
-    );
-
-    // Log the results of the aggregation
-    console.log("Aggregation result:", result);
-  } catch (error) {
-    console.error("AggregationMongo test failed:", error);
-  }
-};
+const arrayToSaveReference = [
+  {
+    _id: ObjectId(testIdDocument4),
+    name: "Test Document 4",
+    testCollection_id: ObjectId(testIdDocument1),
+    status: "active",
+    datetime: new Date(),
+  },
+  {
+    _id: ObjectId(testIdDocument5),
+    name: "Test Document 5",
+    testCollection_id: ObjectId(testIdDocument2),
+    status: "active",
+    datetime: new Date(),
+  },
+  {
+    _id: ObjectId(testIdDocument6),
+    name: "Test Document 6",
+    testCollection_id: ObjectId(testIdDocument6),
+    status: "active",
+    datetime: new Date(),
+  },
+];
 
 const testSavetoMongo = async () => {
   try {
@@ -40,8 +67,9 @@ const testSavetoMongo = async () => {
 
     // Create a sample document to insert
     const documentToSave = {
-      _id: ObjectId(testIdDocument),
+      _id: ObjectId(testIdDocument1),
       name: "Test Document",
+      status: "active",
       datetime: new Date(),
     };
 
@@ -65,7 +93,7 @@ const testFindIDOne = async () => {
 
     // Call the FindIDOne function
     const result = await MongoWraper.FindIDOne(
-      testIdDocument,
+      testIdDocument1,
       testCollection,
       testDB
     );
@@ -83,7 +111,7 @@ const testDeleteMongoby_id = async () => {
 
     // Call the DeleteMongoby_id function
     const result = await MongoWraper.DeleteMongoby_id(
-      testIdDocument,
+      testIdDocument1,
       testCollection,
       testDB
     );
@@ -95,70 +123,176 @@ const testDeleteMongoby_id = async () => {
   }
 };
 
+const testSavetoMongoMany = async () => {
+  try {
+    console.log("SavetoMongoMany test");
+
+    // Call the SavetoMongo function
+    const result = await MongoWraper.SavetoMongoMany(
+      arrayToSave,
+      testCollection,
+      testDB
+    );
+
+    // Log the result of the insertion
+    console.log("Insert result:", result);
+  } catch (error) {
+    console.error("SavetoMongo test failed:", error);
+  }
+};
+
+const testAggregationMongo = async () => {
+  try {
+    console.log("Testing AggregationMongo");
+
+    // Define an aggregation pipeline
+    const aggregationPipeline = [
+      {
+        $match: {
+          _id: {
+            $in: [
+              ObjectId(testIdDocument1),
+              ObjectId(testIdDocument2),
+              ObjectId(testIdDocument3),
+            ],
+          },
+          status: { $ne: "deleted" },
+        },
+      }, // Example stage to match documents where status is not "deleted"
+      // { $group: { _id: "$category", total: { $sum: "$amount" } } }, // Example stage to group by category and sum amounts
+      { $sort: { _id: -1 } }, // Example stage to sort results by _id in descending order
+    ];
+
+    // console.log("Pipeline:", aggregationPipeline);
+
+    // Call AggregationMongo with the pipeline, collection, and database
+    const result = await MongoWraper.AggregationMongo(
+      aggregationPipeline,
+      testCollection,
+      testDB
+    );
+
+    // Log the results of the aggregation
+    console.log("Aggregation result:", result);
+  } catch (error) {
+    console.error("AggregationMongo test failed:", error);
+  }
+};
+
+const testDeleteMongo = async (arrayToRemove, collection) => {
+  try {
+    console.log("DeleteMongo test");
+
+    const query = {
+      _id: {
+        $in: arrayToRemove,
+      },
+    };
+
+    // Call the DeleteMongoby_id function
+    const result = await MongoWraper.DeleteMongo(query, collection, testDB);
+
+    // Log the result of the DeleteMongo function
+    console.log(result);
+  } catch (error) {
+    console.error("DeleteMongo test failed:", error);
+  }
+};
+
+const testSaveManyBatch = async () => {
+  try {
+    console.log("SaveManyBatch test");
+
+    // Call the SaveManyBatch function
+    const result = await MongoWraper.SaveManyBatch(
+      arrayToSaveReference,
+      testCollection2,
+      testDB
+    );
+
+    // Log the result of the insertion
+    console.log("Insert result:", result);
+  } catch (error) {
+    console.error("SaveManyBatch test failed:", error);
+  }
+};
+
+const ND_PopulateAuto = async () => {
+  try {
+    console.log("ND_PopulateAuto test");
+
+    // Call the ND_PopulateAuto function
+    const result = await MongoWraper.ND_PopulateAuto(
+      { _id: testIdDocument4 },
+      testCollection2,
+      testDB
+    );
+
+    // Log the result of the ND_PopulateAuto function
+    console.log("result", result);
+    console.log(`result[0].testCollection`);
+    console.log(result[0].testCollection);
+  } catch (error) {
+    console.error("ND_PopulateAuto test failed:", error.me);
+    throw new Error(error.message);
+  }
+};
+
 // Run all tests in sequence
 const runTests = async () => {
+  console.time("test");
+
   await testSavetoMongo();
   await testFindIDOne();
-  // await testAggregationMongo();
   await testDeleteMongoby_id();
+
+  await testSavetoMongoMany();
+  await testAggregationMongo();
+  // Delete mongo many records
+  await testDeleteMongo(
+    [
+      ObjectId("624e09075bda143a913c5d61"),
+      ObjectId("624e09075bda143a913c5d62"),
+      ObjectId("624e09075bda143a913c5d63"),
+    ],
+    testCollection
+  );
+
+  await testSaveManyBatch();
+  await testDeleteMongo(
+    [
+      ObjectId("624e09075bda143a913c5d64"),
+      ObjectId("624e09075bda143a913c5d65"),
+      ObjectId("624e09075bda143a913c5d66"),
+    ],
+    testCollection2
+  );
+
+  await testSavetoMongoMany();
+  await testSaveManyBatch();
+  await ND_PopulateAuto();
+  await testDeleteMongo(
+    [
+      ObjectId("624e09075bda143a913c5d61"),
+      ObjectId("624e09075bda143a913c5d62"),
+      ObjectId("624e09075bda143a913c5d63"),
+    ],
+    testCollection
+  );
+  await testDeleteMongo(
+    [
+      ObjectId("624e09075bda143a913c5d64"),
+      ObjectId("624e09075bda143a913c5d65"),
+      ObjectId("624e09075bda143a913c5d66"),
+    ],
+    testCollection2
+  );
 
   // Exit the process after all tests are complete
   console.log("All tests passed successfully. \n");
+  console.timeEnd("test");
   process.exit(0);
 };
 
 // Execute the tests
 runTests();
-
-// const { ObjectId } = require("mongodb");
-
-// const test = async () => {
-//   console.log("Entre a la prueba");
-//   Identifier = "4692455";
-//   for (let index = 0; index < 100; index++) {
-//     const trab = await MongoWraper.PopulateAuto(
-//       {
-//         status: { $ne: "deleted" },
-//         numeroEmpleado: Identifier,
-//       },
-//       "trabajadores",
-//       "GrupoGarzaPonce903228"
-//     );
-//     console.log(trab[0].numeroEmpleado);
-//   }
-// };
-
-// const testGetNextSequenceValue = async () => {
-//   console.log("Entre a la prueba");
-//   const stadtus = await MongoWraper.UpsertMongo(
-//     {
-//       name: "folioPaseSalida",
-//     },
-//     {
-//       name: "folioPaseSalida",
-//     },
-//     "counter",
-//     "EMPRESAGUSTAVO8501348"
-//   );
-
-//   const getnext = await MongoWraper.GetNextSequenceValue(
-//     {
-//       name: "folioPaseSalida",
-//     },
-//     1,
-//     "counter",
-//     "EMPRESAGUSTAVO8501348"
-//   );
-//   console.log(getnext);
-//   console.log("fue esto?");
-
-//   // const status2 = await MongoWraper.FindIDOne(
-//   //   "624e09075bda143a913c5d61",
-//   //   "new",
-//   //   "tracsadb"
-//   // );
-//   // console.log(status2);
-// };
-
-// testGetNextSequenceValue();
-// test();
