@@ -295,6 +295,59 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
+async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
+  try {
+    // Convert any new ObjectId and Date properties
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    // Create the search object
+    const query = { _id: new ObjectId(_id) };
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const newvalues = { $set: newProperties };
+    const result = await db.collection(collection).updateOne(query, newvalues);
+    return result;
+  } catch (error) {
+    console.error("UpdateMongoBy_id error:", error.message);
+    return [];
+  }
+}
+
+async function UpdateMongoMany(query, newProperties, collection, databaseName) {
+  try {
+    // Convert any new ObjectId and Date properties
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    query = Object.keys(query).reduce((acum, property) => {
+      if (property.includes("_id")) {
+        return { ...acum, [property]: new ObjectId(query[property]) };
+      } else {
+        return { ...acum, [property]: query[property] };
+      }
+    }, {});
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const newvalues = { $set: newProperties };
+    const result = await db.collection(collection).updateMany(query, newvalues);
+    return result;
+  } catch (error) {
+    console.error("UpdateMongoMany error:", error);
+    return [];
+  }
+}
+
 // --- The following functions have not been cleaned yet, but they work ---
 function SavetoMongoCallback(objectToSave, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -510,30 +563,6 @@ async function UpsertMongo(query, newProperties, collection, databaseName) {
   }
 }
 
-async function UpdateMongoMany(query, newProperties, collection, databaseName) {
-  try {
-    newProperties = ConvertIdtoObjectId(newProperties);
-    newProperties = ConvertDatetoDatetime(newProperties);
-    query = Object.keys(query).reduce((acum, property) => {
-      if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
-      } else {
-        return { ...acum, [property]: query[property] };
-      }
-    }, {});
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $set: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
 async function UpdateMongoManyRename(
   query,
   newProperties,
@@ -549,24 +578,6 @@ async function UpdateMongoManyRename(
 
     var newvalues = { $rename: newProperties };
     let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
-  try {
-    newProperties = ConvertIdtoObjectId(newProperties);
-    newProperties = ConvertDatetoDatetime(newProperties);
-    const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $set: newProperties };
-    let result = await db.collection(collection).updateOne(query, newvalues);
     // await db.close();
     return result;
   } catch (error) {
@@ -602,7 +613,7 @@ async function UpdateMongoManyBy_idPush(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -625,7 +636,7 @@ async function UpdateMongoManyBy_idAddToSet(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -648,7 +659,7 @@ async function UpdateMongoManyBy_idPull(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -723,7 +734,7 @@ async function UpdateBy_idPush_id(
     const db = await getMongoClient(DatabaseName);
 
     var newvalues = {
-      $push: { [originCollection]: new ObjectId(new_id)() },
+      $push: { [originCollection]: new ObjectId(new_id) },
     };
     let result = await db.collection(collection).updateOne(query, newvalues);
     // await db.close();
@@ -978,7 +989,7 @@ async function FindLimitLast(query, limit, collection, databaseName) {
     const allKeys = properties.filter((property) => property.includes("_id"));
     allKeys.forEach((prop) => {
       console.log("entro almenos una vez: ", query[prop]);
-      query[prop] = new ObjectId(query[prop])();
+      query[prop] = new ObjectId(query[prop]);
     });
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     const db = await getMongoClient(DatabaseName);
@@ -1039,7 +1050,7 @@ async function Populate(collection, databaseName, joinCollection) {
 async function PopulateAuto(query, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    if (query._id) query._id = new ObjectId(query._id)();
+    if (query._id) query._id = new ObjectId(query._id);
     const db = await getMongoClient(DatabaseName);
 
     var doc = await db.collection(collection).findOne(query);
