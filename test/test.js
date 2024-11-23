@@ -105,6 +105,27 @@ const testFindIDOne = async () => {
   }
 };
 
+const testUpdateMongoBy_id = async () => {
+  try {
+    console.log("UpdateMongoBy_id test");
+
+    // Call the UpdateMongoBy_id function
+    const result = await MongoWraper.UpdateMongoBy_id(
+      testIdDocument1,
+      {
+        newProperty: "newValue",
+      },
+      testCollection,
+      testDB
+    );
+
+    // Log the result of UpdateMongoBy_id function
+    console.log(result);
+  } catch (error) {
+    console.error("UpdateMongoBy_id test failed:", error);
+  }
+};
+
 const testDeleteMongoby_id = async () => {
   try {
     console.log("DeleteMongoby_id test");
@@ -217,6 +238,29 @@ const testSaveManyBatch = async () => {
   }
 };
 
+const testUpdateMongoMany = async (collection) => {
+  try {
+    console.log("UpdateMongoMany test");
+
+    // Call the UpdateMongoMany function
+    const result = await MongoWraper.UpdateMongoMany(
+      {
+        status: "active",
+      },
+      {
+        newProperty: "newValue",
+      },
+      collection,
+      testDB
+    );
+
+    // Log the result of UpdateMongoMany function
+    console.log(result);
+  } catch (error) {
+    console.error("UpdateMongoMany test failed:", error);
+  }
+};
+
 const ND_PopulateAuto = async () => {
   try {
     console.log("ND_PopulateAuto test");
@@ -242,13 +286,15 @@ const ND_PopulateAuto = async () => {
 const runTests = async () => {
   console.time("test");
 
+  // First sequence set of functions to test
   await testSavetoMongo();
   await testFindIDOne();
+  await testUpdateMongoBy_id();
   await testDeleteMongoby_id();
 
+  // Second sequence set of functions to test
   await testSavetoMongoMany();
   await testAggregationMongo();
-  // Delete mongo many records
   await testDeleteMongo(
     [
       ObjectId("624e09075bda143a913c5d61"),
@@ -258,7 +304,9 @@ const runTests = async () => {
     testCollection
   );
 
+  // Third sequence set of functions to test
   await testSaveManyBatch();
+  await testUpdateMongoMany(testCollection2);
   await testDeleteMongo(
     [
       ObjectId("624e09075bda143a913c5d64"),
@@ -268,6 +316,7 @@ const runTests = async () => {
     testCollection2
   );
 
+  // Fourth sequence set of functions to test
   await testSavetoMongoMany();
   await testSaveManyBatch();
   await ND_PopulateAuto();

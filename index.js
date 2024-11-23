@@ -295,6 +295,59 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
+async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
+  try {
+    // Convert any new ObjectId and Date properties
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    // Create the search object
+    const query = { _id: new ObjectId(_id) };
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const newvalues = { $set: newProperties };
+    const result = await db.collection(collection).updateOne(query, newvalues);
+    return result;
+  } catch (error) {
+    console.error("UpdateMongoBy_id error:", error.message);
+    return [];
+  }
+}
+
+async function UpdateMongoMany(query, newProperties, collection, databaseName) {
+  try {
+    // Convert any new ObjectId and Date properties
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    query = Object.keys(query).reduce((acum, property) => {
+      if (property.includes("_id")) {
+        return { ...acum, [property]: new ObjectId(query[property]) };
+      } else {
+        return { ...acum, [property]: query[property] };
+      }
+    }, {});
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const newvalues = { $set: newProperties };
+    const result = await db.collection(collection).updateMany(query, newvalues);
+    return result;
+  } catch (error) {
+    console.error("UpdateMongoMany error:", error);
+    return [];
+  }
+}
+
 // --- The following functions have not been cleaned yet, but they work ---
 function SavetoMongoCallback(objectToSave, collection, databaseName) {
   const DatabaseName = databaseName == null ? mongoDb : databaseName;
@@ -510,30 +563,6 @@ async function UpsertMongo(query, newProperties, collection, databaseName) {
   }
 }
 
-async function UpdateMongoMany(query, newProperties, collection, databaseName) {
-  try {
-    newProperties = ConvertIdtoObjectId(newProperties);
-    newProperties = ConvertDatetoDatetime(newProperties);
-    query = Object.keys(query).reduce((acum, property) => {
-      if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
-      } else {
-        return { ...acum, [property]: query[property] };
-      }
-    }, {});
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $set: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
 async function UpdateMongoManyRename(
   query,
   newProperties,
@@ -549,24 +578,6 @@ async function UpdateMongoManyRename(
 
     var newvalues = { $rename: newProperties };
     let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
-  try {
-    newProperties = ConvertIdtoObjectId(newProperties);
-    newProperties = ConvertDatetoDatetime(newProperties);
-    const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $set: newProperties };
-    let result = await db.collection(collection).updateOne(query, newvalues);
     // await db.close();
     return result;
   } catch (error) {
