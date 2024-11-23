@@ -613,7 +613,7 @@ async function UpdateMongoManyBy_idPush(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -636,7 +636,7 @@ async function UpdateMongoManyBy_idAddToSet(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -659,7 +659,7 @@ async function UpdateMongoManyBy_idPull(
   collection,
   databaseName
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e)());
+  const _idArrObject = _idArr.map((e) => new ObjectId(e));
   //si no lo resuelvo con or
   try {
     const query = { _id: { $in: _idArrObject } };
@@ -734,7 +734,7 @@ async function UpdateBy_idPush_id(
     const db = await getMongoClient(DatabaseName);
 
     var newvalues = {
-      $push: { [originCollection]: new ObjectId(new_id)() },
+      $push: { [originCollection]: new ObjectId(new_id) },
     };
     let result = await db.collection(collection).updateOne(query, newvalues);
     // await db.close();
@@ -989,7 +989,7 @@ async function FindLimitLast(query, limit, collection, databaseName) {
     const allKeys = properties.filter((property) => property.includes("_id"));
     allKeys.forEach((prop) => {
       console.log("entro almenos una vez: ", query[prop]);
-      query[prop] = new ObjectId(query[prop])();
+      query[prop] = new ObjectId(query[prop]);
     });
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
     const db = await getMongoClient(DatabaseName);
@@ -1050,7 +1050,7 @@ async function Populate(collection, databaseName, joinCollection) {
 async function PopulateAuto(query, collection, databaseName) {
   try {
     const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    if (query._id) query._id = new ObjectId(query._id)();
+    if (query._id) query._id = new ObjectId(query._id);
     const db = await getMongoClient(DatabaseName);
 
     var doc = await db.collection(collection).findOne(query);
