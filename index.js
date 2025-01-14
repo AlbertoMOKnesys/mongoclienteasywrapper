@@ -434,7 +434,7 @@ async function AggregationMongoCursor(
 async function ND_DeleteMongoby_id(_id, collection, databaseName) {
   try {
     const query = { _id: new ObjectId(_id) };
-    // const DatabaseName = databaseName == null ? mongoDb : databaseName;
+    const DatabaseName = databaseName == null ? mongoDb : databaseName;
     // let db = await MongoClient.connect(mongo.uri, {
     //   useUnifiedTopology: true,
     // });
