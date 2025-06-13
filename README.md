@@ -88,6 +88,19 @@ const findDocument = async () => {
   console.log("Find result:", result);
 };
 
+// Update Document by query
+const updateDocument = async () => {
+  const result = await MongoWraper.UpdateMongo(
+    { _id: new ObjectId("624e09075bda143a913c5d61") },
+    {
+      property: newValue,
+    },
+    "testCollection",
+    "testDB"
+  );
+  console.log("Update Document result:", result);
+};
+
 // Delete a document by ID
 const deleteDocument = async () => {
   const result = await MongoWraper.DeleteMongoby_id(
@@ -96,6 +109,18 @@ const deleteDocument = async () => {
     "testDB"
   );
   console.log("Delete result:", result);
+};
+
+// Finds, update and return modified document (read-modify-read)
+const findAndUpdateDocument = async () => {
+  const result = await MongoClient.FindOneAndUpdate(
+    { query },
+    { $inc: { seq: 1 } },
+    "testCollection",
+    "testDB",
+    { upsert: true, returnDocument: "after" }
+  );
+  console.log("Modified document:", result);
 };
 ```
 

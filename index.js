@@ -7,16 +7,16 @@ const operatorNotDeleted = { status: { $ne: "deleted" } };
 const tagDeleted = { status: "deleted" };
 
 async function getMongoClient(dbName) {
-  // Asegúrate de que el cliente esté conectado
+  // Make sure the client is connected
   if (!mongoDBConnectionManager.isConnected()) {
-    // console.log("Estableciendo nueva conexión...");
+    // console.log("Establish new connection...");
     await mongoDBConnectionManager.connect(mongo.uri);
   }
   // else {
-  //   console.log("Reutilizándo conexión...");
+  //   console.log("Reusing connection...");
   // }
 
-  // Obtén la conexión para la base de datos solicitada
+  // Get the connection to the requested database
   return await mongoDBConnectionManager.getDatabase(dbName);
 }
 
@@ -138,6 +138,53 @@ async function FindIDOne(Id, collection, databaseName) {
   } catch (error) {
     console.error("FindIDOne error:", error);
     return {};
+  }
+}
+
+async function FindOne(query, collection, databaseName) {
+  try {
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const result = await db.collection(collection).findOne(query);
+    return result;
+  } catch (error) {
+    console.error("FindOne error:", error);
+    return {};
+  }
+}
+
+async function FindOneAndUpdate(
+  query,
+  newProperties,
+  collection,
+  databaseName,
+  options = {}
+) {
+  try {
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    // Converts any string that looks like an ObjectId to ObjectId()
+    query = ConvertIdtoObjectId(query);
+    newProperties = ConvertIdtoObjectId(newProperties);
+
+    // Converts ISO strings / timestamps to JS Date (for $set, etc.)
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    /* -------------------- Core operation ----------------- */
+    return await db
+      .collection(collection)
+      .findOneAndUpdate(query, newProperties, options);
+  } catch (err) {
+    console.error("FindOneAndUpdate error:", err);
+    return null;
   }
 }
 
@@ -295,6 +342,27 @@ async function SavetoMongo(objectToSave, collection, databaseName) {
   }
 }
 
+async function UpdateMongo(query, newProperties, collection, databaseName) {
+  try {
+    // Convert any new ObjectId and Date properties
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    // Set the database name
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    const newvalues = { $set: newProperties };
+    const result = await db.collection(collection).updateOne(query, newvalues);
+    return result;
+  } catch (error) {
+    console.error("UpdateMongo error:", error);
+    return [];
+  }
+}
+
 async function UpdateMongoBy_id(_id, newProperties, collection, databaseName) {
   try {
     // Convert any new ObjectId and Date properties
@@ -345,6 +413,34 @@ async function UpdateMongoMany(query, newProperties, collection, databaseName) {
   } catch (error) {
     console.error("UpdateMongoMany error:", error);
     return [];
+  }
+}
+
+async function UpdateOneRaw(
+  query,
+  newProperties,
+  collection,
+  databaseName,
+  options = {}
+) {
+  try {
+    // Set the database name
+    const dbName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(dbName);
+
+    // Optional conversion of dates/ids within filter and update
+    query = ConvertIdtoObjectId(query);
+    newProperties = ConvertIdtoObjectId(newProperties);
+    newProperties = ConvertDatetoDatetime(newProperties);
+
+    return await db
+      .collection(collection)
+      .updateOne(query, newProperties, options);
+  } catch (err) {
+    console.error("UpdateOneRaw error:", err);
+    return null;
   }
 }
 
@@ -513,30 +609,6 @@ async function getIndexs(collection, databaseName) {
     console.log("infices de la colleccion: " + collection, indexes);
 
     return indexes;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function UpdateMongo(query, newProperties, collection, databaseName) {
-  try {
-    newProperties = ConvertIdtoObjectId(newProperties);
-    newProperties = ConvertDatetoDatetime(newProperties);
-    //cro que esto esta de mas poir que ya esta la funcion de arriba
-    query = Object.keys(query).reduce((acum, property) => {
-      if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
-      } else {
-        return { ...acum, [property]: query[property] };
-      }
-    }, {});
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $set: newProperties };
-    let result = await db.collection(collection).updateOne(query, newvalues);
-    return result;
   } catch (error) {
     console.log(error);
     return [];
@@ -820,20 +892,6 @@ async function GetLastMongo(limit, collection, databaseName) {
   } catch (error) {
     console.log(error.message);
     return [];
-  }
-}
-
-async function FindOne(query, collection, databaseName) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db.collection(collection).findOne(query);
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error.message);
-    return {};
   }
 }
 
@@ -1279,6 +1337,7 @@ module.exports = function (connectionString, defaultDbName) {
     FindMany,
     FindManyLimit,
     FindOne,
+    FindOneAndUpdate,
     FindOneLast,
     FindPaginated,
     GetAll,
@@ -1311,5 +1370,6 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyPullIDToCollectionPull,
     UpdateMongoManyRename,
     UpsertMongo,
+    UpdateOneRaw,
   };
 };
