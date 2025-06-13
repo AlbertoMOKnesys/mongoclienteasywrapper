@@ -1,6 +1,6 @@
 {
   "name": "mongoclienteasywrapper",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "description": "Easy wrapper for mongoclient",
   "main": "index.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "mongoclient",
     "wrapper"
   ],
-  "author": "Alberto Martinez, Gustavo Luna, Christopher Taylor Gonzalez, Jose Tello",
+  "author": "Alberto Martinez, Christopher Taylor Gonzalez, Gustavo Luna, Jose Tello",
   "contributors": [
     {
       "name": "Alberto Martinez",
@@ -22,7 +22,6 @@
     },
     {
       "name": "Christopher Taylor Gonzalez",
-      "email": "taylorgr@outlook.com",
       "url": "https://github.com/taylorgr93"
     },
     {
