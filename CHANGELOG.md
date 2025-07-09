@@ -19,3 +19,52 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 ---
+
+## [1.1.5] - 2025-07-08
+
+### Added
+
+- New **`src/utils/`** folder containing helper utilities:
+  - `convertIdToObjectId`
+  - `convertDateToDatetime`
+
+### Changed
+
+- **`DropCollection`** refactored to use the new conversion helpers.
+- **`FindMany`** refactored to use the new conversion helpers.
+- **`FindManyLimit`** refactored to use the new conversion helpers.
+- **`FindOneLast`** refactored to use the new conversion helpers.
+- **`GetAll`** refactored to use the new conversion helpers.
+- **`GetLastMongo`** refactored to use the new conversion helpers.
+- **`UpsertMongo`** refactored to use the new conversion helpers.
+- All internal import paths updated to reference the new utilities.
+
+### Fixed
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+
+  - `aggregationMongo`
+  - `DeleteMongoby_id`
+  - `DeleteMongo`
+  - `DropCollection`
+  - `FindIDOne`
+  - `FindMany`
+  - `FindManyLimit`
+  - `FindOne`
+  - `FindOneAndUpdate`
+  - `FindOneLast`
+  - `GetAll`
+  - `GetLastMongo`
+  - `SaveManyBatch`
+  - `SavetoMongoMany`
+  - `SavetoMongo`
+  - `UpdateMongo`
+  - `UpdateMongoBy_id`
+  - `UpdateMongoMany`
+  - `UpdateOneRaw`
+  - `UpsertMongo`
+  - `getMongoClient`
+
+---
