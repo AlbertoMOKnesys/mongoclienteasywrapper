@@ -68,3 +68,28 @@ All notable changes to this project will be documented in this file.
   - `getMongoClient`
 
 ---
+
+## [1.2.2]  ‑  2025‑07‑15
+
+### Added
+
+- **Generic pagination support**
+  - `PaginationQueryDto` (`src/common/dto/pagination-query.dto.ts`)  
+    Handles `page` and `limit` query params with validation/auto‑casting.
+  - Helper `countDocuments` in `mongoclienteasywrapper` for total‑record count (used by paginated endpoints).
+
+### Changed
+
+- **`FindMany`**
+  - New 4th parameter **`options`** (projection, sort, skip, limit, hint, …).
+  - Backward‑compatible – defaults to `{}` when omitted.
+  - Log messages now include page and limit information.
+- **Other services** that rely on `FindMany` updated to pass `options` when appropriate.
+
+### Fixed
+
+### Documentation
+
+- Added detailed JSDoc to **`FindMany`** illustrating the new `options` argument and sample pagination usage.
+
+---
