@@ -186,22 +186,29 @@ async function FindIDOne(Id, collection, databaseName) {
  * ----------------------------------------------------
  * Retrieves all documents that match a given filter from a collection
  * and returns them as an array.
+ * Now accepts an optional `options` object that is passed directly to
+ * MongoDB’s `.find()` cursor (projection, sort, skip, limit, hint, etc.).
  *
- * @param {Object}  query          - Standard MongoDB filter object
+ * @param {Object}  query            Standard MongoDB filter
  *                                   (e.g. `{ status: "active" }`).
- * @param {string}  collection     - Name of the collection to query.
- * @param {string} [databaseName]  - Optional DB name; defaults to global `mongoDb`.
- * @returns {Promise<Array>}       Array of matched documents, or an empty
- *                                 array if none found / on error.
+ * @param {string}  collection       Name of the collection to query.
+ * @param {string} [databaseName]    DB name; defaults to global `mongoDb`.
+ * @param {Object} [options={}]      Any valid `find()` options:
+ *                                   – `projection` `{ field: 0 }`
+ *                                   – `sort` `{ createdAt: -1 }`
+ *                                   – `skip`, `limit`, `hint`, …
+ * @returns {Promise<Array>}         Array of matched documents, or an empty
+ *                                   array if none found / on error.
  */
-async function FindMany(query, collection, databaseName) {
+async function FindMany(query, collection, databaseName, options = {}) {
   try {
     // Choose the database (explicit parameter or default)
     const dbName = databaseName || mongoDb;
 
     // Obtain a connection and run the query
     const db = await getMongoClient(dbName);
-    return await db.collection(collection).find(query).toArray();
+
+    return await db.collection(collection).find(query, options).toArray();
   } catch (error) {
     // Log the failure and return a predictable fallback
     console.log("FindMany error:", error);
