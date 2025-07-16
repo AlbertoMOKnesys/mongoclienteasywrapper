@@ -208,7 +208,20 @@ async function FindMany(query, collection, databaseName, options = {}) {
     // Obtain a connection and run the query
     const db = await getMongoClient(dbName);
 
-    return await db.collection(collection).find(query, options).toArray();
+    // Separa las opciones que .find() sí entiende directamente
+    const { projection, sort, hint, ...rest } = options;
+
+    const cursor = db.collection(collection).find(query, {
+      projection,
+      sort,
+      hint,
+      ...rest, // ignora skip/limit aquí; los aplicamos abajo
+    });
+
+    if (typeof options.skip === "number") cursor.skip(options.skip);
+    if (typeof options.limit === "number") cursor.limit(options.limit);
+
+    return await cursor.toArray();
   } catch (error) {
     // Log the failure and return a predictable fallback
     console.log("FindMany error:", error);

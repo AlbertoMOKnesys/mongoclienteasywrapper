@@ -93,3 +93,35 @@ All notable changes to this project will be documented in this file.
 - Added detailed JSDoc to **`FindMany`** illustrating the new `options` argument and sample pagination usage.
 
 ---
+
+## [1.2.3]  ‑  2025‑07‑16
+
+### Added
+
+- **Generic pagination support** across services.
+  - Query params `page` & `limit` now parsed and validated (auto‑cast to numbers).
+- **Pagination test suite (shared collection)**:
+  - Seeds numbered docs into the existing test collection.
+  - `testFindManyPagination()` asserts skip/limit + ordering.
+  - `testFindManyProjection()` asserts projection exclusion.
+
+### Changed
+
+- **`FindMany`**
+  - New 4th param `options` supporting `projection`, `sort`, `skip`, `limit`, `hint`, etc.
+  - Explicitly applies `skip`/`limit` on the cursor (handles `0` correctly).
+  - Backward‑compatible: defaults to `{}` when omitted.
+- Updated service methods that paginate (e.g., Transactions) to pass `page`/`limit` options and return `{ meta, data }`.
+- Added pagination‑aware log messages (include page & limit).
+
+### Fixed
+
+- Incorrect page‑1 results when `skip=0` (falsy check) — now respected.
+- Projection leakage in tests: wrapper honors `projection` exclusions.
+
+### Documentation
+
+- Expanded JSDoc for **`FindMany`** to document the `options` argument and show pagination usage.
+- Added comments to pagination test helpers explaining seed/cleanup flow.
+
+---
