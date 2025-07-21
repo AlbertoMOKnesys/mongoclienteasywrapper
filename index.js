@@ -64,6 +64,40 @@ async function AggregationMongo(arrAggregation, collection, databaseName) {
 }
 
 /**
+ * Count
+ * ------------------------------------------------------------------
+ * Returns the number of documents in `collection` that match `query`.
+ *
+ * ⚠️ **Note:** `collection.count()` is deprecated in modern MongoDB
+ * drivers.  Prefer `countDocuments(query)` if you need exact counts
+ * (respecting filters) or `estimatedDocumentCount()` when you only
+ * need a fast estimate of the total collection size.  This wrapper
+ * keeps the original behaviour for backward-compatibility.
+ *
+ * @param {Object}  query           - MongoDB filter object.
+ * @param {string}  collection      - Target collection name.
+ * @param {string} [databaseName]   - Optional DB name; defaults to global `mongoDb`.
+ *
+ * @returns {Promise<number>}       Number of documents matching the filter,
+ *                                  or `0` if an error occurs.
+ */
+async function Count(query, collection, databaseName) {
+  try {
+    // Choose the database (explicit param or default)
+    const dbName = databaseName || mongoDb;
+
+    // Get DB handle
+    const db = await getMongoClient(dbName);
+
+    // Deprecated, but mirrors older code; switch to countDocuments if needed
+    return await db.collection(collection).count(query);
+  } catch (error) {
+    console.log("Count error:", error.message);
+    return 0;
+  }
+}
+
+/**
  * Deletes a single document from a MongoDB collection by its `_id`.
  *
  * @param {string|ObjectId} Id          The document’s `_id` (string or ObjectId).
@@ -115,6 +149,46 @@ async function DeleteMongo(query, collection, databaseName) {
   } catch (error) {
     // Log the error and return a safe fallback
     console.error("DeleteMongo error:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Distinct
+ * ------------------------------------------------------------------
+ * Returns an array of **unique values** for a given field in a
+ * collection.  It is a thin wrapper around MongoDB’s
+ * `collection.distinct()` helper.
+ *
+ * @param {string}  query           A **field name** for which you want the
+ *                                  distinct values (e.g. `"status"` or `"sku"`).
+ *                                  If you need to add a filter, you can extend
+ *                                  this wrapper to accept a second argument and
+ *                                  pass it as the *filter* parameter to
+ *                                  `distinct(field, filter)`.
+ * @param {string}  collection      Name of the collection to query.
+ * @param {string} [databaseName]   Optional DB name; defaults to global `mongoDb`.
+ *
+ * @returns {Promise<Array>}        Array with all distinct values found,
+ *                                  or `[]` if an error occurs.
+ *
+ * @example
+ * // Get every unique status in the "orders" collection
+ * const statuses = await Distinct("status", "orders");
+ * // => ["pending", "shipped", "cancelled"]
+ */
+async function Distinct(query, collection, databaseName) {
+  try {
+    // Determine which database to use
+    const dbName = databaseName || mongoDb;
+
+    // Obtain a connection / reuse existing one
+    const db = await getMongoClient(dbName);
+
+    // Fetch all distinct values for the requested field
+    return await db.collection(collection).distinct(query);
+  } catch (error) {
+    console.log("Distinct error:", error);
     return [];
   }
 }
@@ -182,46 +256,72 @@ async function FindIDOne(Id, collection, databaseName) {
 }
 
 /**
+ * FindLimitLast
+ * ------------------------------------------------------------------
+ * Returns the last **`limit`** documents that match a filter, sorted by
+ * `_id` in **descending** order (newest first).
+ *
+ * Behaviour notes
+ *  • Any field name in `query` that contains “_id” is automatically
+ *    converted to a MongoDB `ObjectId` before the query is executed.
+ *  • Uses classic *limit / sort* (no pagination cursor).
+ *
+ * @param {Object}  query           - MongoDB filter object (e.g. `{ user_id:"..." }`).
+ *                                    Fields containing “_id” are cast to `ObjectId`.
+ * @param {number}  limit           - Max number of documents to return.
+ * @param {string}  collection      - Collection name.
+ * @param {string} [databaseName]   - Optional DB name; defaults to global `mongoDb`.
+ *
+ * @returns {Promise<Array>}        Array with up to `limit` newest documents,
+ *                                  or `[]` if an error occurs.
+ */
+async function FindLimitLast(query, limit, collection, databaseName) {
+  try {
+    /* -------- 1. Convert any *_id fields to ObjectId -------- */
+    for (const key of Object.keys(query)) {
+      if (key.includes("_id")) {
+        query[key] = new ObjectId(query[key]);
+      }
+    }
+
+    /* -------- 2. Select DB and connect -------- */
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+
+    /* -------- 3. Query, sort DESC, limit -------- */
+    return await db
+      .collection(collection)
+      .find(query)
+      .sort({ _id: -1 }) // newest → oldest
+      .limit(limit)
+      .toArray();
+  } catch (error) {
+    console.log("FindLimitLast error:", error.message);
+    return [];
+  }
+}
+
+/**
  * FindMany
  * ----------------------------------------------------
  * Retrieves all documents that match a given filter from a collection
  * and returns them as an array.
- * Now accepts an optional `options` object that is passed directly to
- * MongoDB’s `.find()` cursor (projection, sort, skip, limit, hint, etc.).
  *
- * @param {Object}  query            Standard MongoDB filter
+ * @param {Object}  query          - Standard MongoDB filter object
  *                                   (e.g. `{ status: "active" }`).
- * @param {string}  collection       Name of the collection to query.
- * @param {string} [databaseName]    DB name; defaults to global `mongoDb`.
- * @param {Object} [options={}]      Any valid `find()` options:
- *                                   – `projection` `{ field: 0 }`
- *                                   – `sort` `{ createdAt: -1 }`
- *                                   – `skip`, `limit`, `hint`, …
- * @returns {Promise<Array>}         Array of matched documents, or an empty
- *                                   array if none found / on error.
+ * @param {string}  collection     - Name of the collection to query.
+ * @param {string} [databaseName]  - Optional DB name; defaults to global `mongoDb`.
+ * @returns {Promise<Array>}       Array of matched documents, or an empty
+ *                                 array if none found / on error.
  */
-async function FindMany(query, collection, databaseName, options = {}) {
+async function FindMany(query, collection, databaseName) {
   try {
     // Choose the database (explicit parameter or default)
     const dbName = databaseName || mongoDb;
 
     // Obtain a connection and run the query
     const db = await getMongoClient(dbName);
-
-    // Separa las opciones que .find() sí entiende directamente
-    const { projection, sort, hint, ...rest } = options;
-
-    const cursor = db.collection(collection).find(query, {
-      projection,
-      sort,
-      hint,
-      ...rest, // ignora skip/limit aquí; los aplicamos abajo
-    });
-
-    if (typeof options.skip === "number") cursor.skip(options.skip);
-    if (typeof options.limit === "number") cursor.limit(options.limit);
-
-    return await cursor.toArray();
+    return await db.collection(collection).find(query).toArray();
   } catch (error) {
     // Log the failure and return a predictable fallback
     console.log("FindMany error:", error);
@@ -507,6 +607,59 @@ async function ND_PopulateAuto(query, collection, databaseName) {
     }
   } catch (error) {
     console.error("ND_PopulateAuto error:", error.message);
+    return [];
+  }
+}
+
+/**
+ * FindPaginated
+ * ------------------------------------------------------------------
+ * Retrieves a specific “page” of documents that match `query`,
+ * sorted by `_id` ASC, using classic *skip/limit* pagination.
+ *
+ * Formula: `skip = pageNumber * nPerPage`
+ * (pageNumber is zero-based → page 0 = first chunk)
+ *
+ * @param {Object}  query           MongoDB filter object.
+ * @param {number}  pageNumber      Zero-based page index (0 ⇒ first page).
+ * @param {number}  nPerPage        Page size (number of documents per page).
+ * @param {string}  collection      Collection name.
+ * @param {string} [databaseName]   Optional DB name; defaults to global `mongoDb`.
+ *
+ * @returns {Promise<Array>}        Array with ≤ `nPerPage` documents, or `[]` on error.
+ *
+ * @example
+ * // page 0 (first 20 docs)
+ * const firstPage = await FindPaginated({}, 0, 20, "orders");
+ *
+ * // page 3 (docs 60-79)
+ * const page3 = await FindPaginated({ status: "shipped" }, 3, 20, "orders");
+ */
+async function FindPaginated(
+  query,
+  pageNumber,
+  nPerPage,
+  collection,
+  databaseName
+) {
+  try {
+    /* -------- choose database and connect -------- */
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+
+    /* -------- calculate skip -------- */
+    const skip = pageNumber > 0 ? pageNumber * nPerPage : 0;
+
+    /* -------- run paginated query -------- */
+    return await db
+      .collection(collection)
+      .find(query)
+      .sort({ _id: 1 })
+      .skip(skip)
+      .limit(nPerPage)
+      .toArray();
+  } catch (error) {
+    console.log("FindPaginated error:", error.message);
     return [];
   }
 }
@@ -859,26 +1012,6 @@ async function InsertIndexUnique(index, collection, databaseName) {
       .createIndex(index, { unique: true });
     // await db.close();
     //console.log(util.inspect(result, false, null, true /* enable colors */))
-    return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function Distinct(query, collection, databaseName) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    // let db = await MongoClient.connect(mongo.uri, {
-    //   useUnifiedTopology: true,
-    // });
-    // const dbo = db.db(DatabaseName);
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db.collection(collection).distinct(query);
-    // .toArray();
-
-    // await db.close();
     return result;
   } catch (error) {
     console.log(error);
@@ -1265,33 +1398,6 @@ async function ND_FindMany(
   }
 }
 
-async function FindPaginated(
-  query,
-  pageNumber,
-  nPerPage,
-  collection,
-  databaseName
-) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    // const skipIndex = (page - 1) * limit;
-    let result = await db
-      .collection(collection)
-      .find(query)
-      .sort({ _id: 1 })
-      .limit(nPerPage)
-      .skip(pageNumber > 0 ? pageNumber * nPerPage : 0)
-      .toArray();
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error.message);
-    return [];
-  }
-}
-
 async function ND_FindPaginated(
   query,
   pageNumber,
@@ -1311,31 +1417,6 @@ async function ND_FindPaginated(
       .sort({ _id: 1 })
       .limit(nPerPage)
       .skip(pageNumber > 0 ? pageNumber * nPerPage : 0)
-      .toArray();
-    // await db.close();
-    return result;
-  } catch (error) {
-    console.log(error.message);
-    return [];
-  }
-}
-
-async function FindLimitLast(query, limit, collection, databaseName) {
-  try {
-    const properties = Object.keys(query);
-    const allKeys = properties.filter((property) => property.includes("_id"));
-    allKeys.forEach((prop) => {
-      console.log("entro almenos una vez: ", query[prop]);
-      query[prop] = new ObjectId(query[prop]);
-    });
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db
-      .collection(collection)
-      .find(query)
-      .sort({ _id: -1 })
-      .limit(limit)
       .toArray();
     // await db.close();
     return result;
@@ -1539,20 +1620,6 @@ async function ND_FindIDOnePopulated(Id, collection, databaseName) {
       // no hay ni un solo registro de esta consulta
       return {};
     }
-  } catch (error) {
-    console.log(error.message);
-    return {};
-  }
-}
-
-async function Count(query, collection, databaseName) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db.collection(collection).count(query);
-    // await db.close();
-    return result;
   } catch (error) {
     console.log(error.message);
     return {};
