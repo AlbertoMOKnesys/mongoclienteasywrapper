@@ -69,7 +69,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.2]  ‑  2025‑07‑15
+## [1.2.1]  ‑  2025‑07‑15
 
 ### Added
 
@@ -94,7 +94,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.3]  ‑  2025‑07‑16
+## [1.2.2]  ‑  2025‑07‑16
 
 ### Added
 
@@ -123,5 +123,33 @@ All notable changes to this project will be documented in this file.
 
 - Expanded JSDoc for **`FindMany`** to document the `options` argument and show pagination usage.
 - Added comments to pagination test helpers explaining seed/cleanup flow.
+
+---
+
+## [1.2.3] – 2025‑07‑17
+
+### Added
+
+### Changed
+
+- **`Distinct`** refactored to use the new conversion helpers.
+- **`FindPaginated`** refactored to use the new conversion helpers.
+- **`Count`** refactored to use the new conversion helpers.
+- **`FindLimitLast`** refactored to use the new conversion helpers.
+- **`FindPaginated`** refactored to use the new conversion helpers.
+
+### Fixed
+
+- **`FindMany`** method returns parameters without options.
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+
+  - `Distinct`
+  - `FindPaginated`
+  - `Count`
+  - `FindLimitLast`
+  - `FindPaginated`
 
 ---

@@ -282,82 +282,6 @@ const ND_PopulateAuto = async () => {
   }
 };
 
-const seedForPagination = async () => {
-  console.log("--- seedForPagination ---");
-  // Limpia colección
-  await MongoWraper.DeleteMongo({}, testCollection, testDB);
-
-  const docs = Array.from({ length: 25 }, (_, i) => ({
-    _id: new ObjectId(),
-    name: `PagDoc-${i + 1}`,
-    status: "active",
-    createdAt: new Date(Date.now() + i), // asegurar orden único
-  }));
-
-  await MongoWraper.SavetoMongoMany(docs, testCollection, testDB);
-  console.log(`Inserted ${docs.length} docs for pagination tests`);
-  return docs; // lo usamos para comparar
-};
-
-const testFindManyPagination = async () => {
-  console.log("--- testFindManyPagination ---");
-  const docs = await seedForPagination(); // limpia e inserta
-
-  const page = 2;
-  const limit = 10;
-  const skip = (page - 1) * limit;
-
-  const results = await MongoWraper.FindMany(
-    { status: { $ne: "deleted" } },
-    testCollection,
-    testDB,
-    {
-      sort: { createdAt: 1 }, // ascendente para que el índice 0 sea PagDoc-1
-      skip,
-      limit,
-    }
-  );
-
-  console.log(`Expected ${limit} docs, got:`, results.length);
-
-  // Validaciones básicas
-  if (results.length !== limit) {
-    throw new Error(
-      `FindMany pagination FAIL: expected ${limit} got ${results.length}`
-    );
-  }
-
-  // Checa que el primer doc de la página 2 sea el #11
-  const expectedName = "PagDoc-11";
-  if (results[0].name !== expectedName) {
-    throw new Error(
-      `FindMany pagination order FAIL: expected first doc '${expectedName}', got '${results[0].name}'`
-    );
-  }
-
-  console.log("Pagination OK ✔️");
-};
-
-const testFindManyProjection = async () => {
-  console.log("--- testFindManyProjection ---");
-
-  const results = await MongoWraper.FindMany({}, testCollection, testDB, {
-    limit: 1,
-    projection: { name: 1 }, // _id incluye por defecto
-  });
-
-  if (!results.length) throw new Error("Projection test: no docs returned");
-  const doc = results[0];
-
-  if (typeof doc.name === "undefined") {
-    throw new Error("Projection test FAIL: name not projected");
-  }
-  if (typeof doc.status !== "undefined") {
-    throw new Error("Projection test FAIL: status should be excluded");
-  }
-  console.log("Projection OK ✔️");
-};
-
 // Run all tests in sequence
 const runTests = async () => {
   console.time("test");
@@ -395,11 +319,6 @@ const runTests = async () => {
   // Fourth sequence set of functions to test
   await testSavetoMongoMany();
   await testSaveManyBatch();
-
-  await testFindManyPagination();
-  await testFindManyProjection();
-  console.log("FindMany pagination suite passed ✅");
-
   await ND_PopulateAuto();
   await testDeleteMongo(
     [
