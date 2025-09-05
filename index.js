@@ -665,6 +665,80 @@ async function FindPaginated(
 }
 
 /**
+ * FindPaginatedOptions
+ * ----------------------------------------------------
+ * Finds documents matching `query` with pagination support and
+ * configurable sorting, projection, and performance options.
+ * Returns an array of documents for the specified page.
+ *
+ * Helper behaviour:
+ *  • Automatically converts any field containing "_id" in `query`
+ *    into a MongoDB `ObjectId`.
+ *  • Calculates `skip` based on zero-based page numbering
+ *    (pageNumber 0 = first page, pageNumber 1 = second page, etc.).
+ *  • Supports flexible sorting, field projection, index hints,
+ *    and disk-based operations for large result sets.
+ *
+ * @param {Object}  query           - Filter to locate documents.
+ * @param {number}  pageNumber      - Zero-based page number (0 = first page).
+ * @param {number}  nPerPage        - Number of documents per page (limit).
+ * @param {string}  collection      - Collection name.
+ * @param {string} [databaseName]   - Optional DB name; defaults to global `mongoDb`.
+ * @param {Object} [options]        - Configuration options:
+ * @param {Object} [options.sort]   - Sort specification (e.g. `{ _id: -1, name: 1 }`).
+ *                                    Defaults to `{ _id: 1 }` for consistency.
+ * @param {Object} [options.projection] - Fields to include/exclude (e.g. `{ name: 1, _id: 0 }`).
+ * @param {Object} [options.hint]   - Index hint for query optimization.
+ * @param {boolean} [options.allowDiskUse] - Allow disk usage for large sorts (default: false).
+ * @returns {Promise<Array>}        Array of documents for the requested page,
+ *                                  or empty array `[]` on error.
+ */
+async function FindPaginatedOptions(
+  query,
+  pageNumber,
+  nPerPage,
+  collection,
+  databaseName,
+  options = {}
+) {
+  try {
+    // Select the database (parameter → fallback to default)
+    const dbName = databaseName || mongoDb;
+
+    // Get DB handle
+    const db = await getMongoClient(dbName);
+
+    // Convert possible ObjectId / Date values
+    query = ConvertIdtoObjectId(query);
+
+    // Calculate skip
+    const skip = pageNumber > 0 ? pageNumber * nPerPage : 0;
+
+    // Extract options with defaults
+    const {
+      sort = { _id: 1 }, // Default: ascending by _id (mantiene compatibilidad)
+      projection = {}, // Campos a incluir/excluir
+      hint = undefined, // Index hint
+      allowDiskUse = false, // Para sorts grandes
+      ...mongoOptions // Cualquier otra opción de MongoDB
+    } = options;
+
+    /* -------- Core operation -------- */
+    let cursor = db
+      .collection(collection)
+      .find(query, { projection, hint, allowDiskUse, ...mongoOptions })
+      .sort(sort)
+      .skip(skip)
+      .limit(nPerPage);
+
+    return await cursor.toArray();
+  } catch (error) {
+    console.log("FindPaginatedOptions error:", error.message);
+    return [];
+  }
+}
+
+/**
  * SaveManyBatch
  * ----------------------------------------------------
  * Inserts a batch of documents into a collection, performing
@@ -1672,6 +1746,7 @@ module.exports = function (connectionString, defaultDbName) {
     FindOneAndUpdate,
     FindOneLast,
     FindPaginated,
+    FindPaginatedOptions,
     GetAll,
     getIndexs,
     GetLastMongo,

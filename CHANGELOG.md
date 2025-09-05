@@ -153,3 +153,22 @@ All notable changes to this project will be documented in this file.
   - `FindPaginated`
 
 ---
+
+## [1.2.4] – 2025‑09‑04
+
+### Added
+
+- **`FindPaginatedOptions`** refactored to use the new conversion helpers.
+- **`convertId copy`** (Draft file) Now supports deep recursion, MongoDB operators, and smart hex validation for safer ID conversion
+
+### Changed
+
+### Fixed
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+
+  - `FindPaginatedOptions`
+
+---
