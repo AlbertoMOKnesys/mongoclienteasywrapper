@@ -64,6 +64,50 @@ async function AggregationMongo(arrAggregation, collection, databaseName) {
 }
 
 /**
+ * Runs an aggregation pipeline on a specific collection and
+ * returns a cursor instead of resolving the entire result set.
+ *
+ * This is useful for processing large datasets in batches,
+ * streaming, or when you don’t want to load all documents into memory at once.
+ *
+ * @param {Array<Object>} arrAggregation - Array of aggregation stages.
+ * @param {string}        collection     - Collection on which to run the pipeline.
+ * @param {string} [databaseName]        - Optional DB name; falls back to `mongoDb`.
+ * @param {number} [batchSize=100]       - Number of documents per batch when iterating.
+ *
+ * @returns {Promise<{cursor: AggregationCursor}>}
+ *          An object containing the MongoDB aggregation cursor.
+ *          The caller can use `.next()`, `.forEach()`, or `.toArray()`
+ *          on the cursor to consume results progressively.
+ */
+async function AggregationMongoCursor(
+  arrAggregation,
+  collection,
+  databaseName,
+  batchSize = 100
+) {
+  try {
+    // Determine the database to use (incoming param or default)
+    const DatabaseName = databaseName || mongoDb;
+
+    // Connect to the database
+    const db = await getMongoClient(DatabaseName);
+
+    // Create an aggregation cursor (streaming results in batches)
+    const result = db
+      .collection(collection)
+      .aggregate(arrAggregation, { cursor: { batchSize } });
+
+    return {
+      cursor: result,
+    };
+  } catch (error) {
+    console.error("Aggregation cursor error:", error);
+    return [];
+  }
+}
+
+/**
  * Count
  * ------------------------------------------------------------------
  * Returns the number of documents in `collection` that match `query`.
@@ -1087,37 +1131,6 @@ async function InsertIndexUnique(index, collection, databaseName) {
     // await db.close();
     //console.log(util.inspect(result, false, null, true /* enable colors */))
     return result;
-  } catch (error) {
-    console.log(error);
-    return [];
-  }
-}
-
-async function AggregationMongoCursor(
-  arrAggregation,
-  collection,
-  databaseName
-) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    // let db = await MongoClient.connect(mongo.uri, {
-    //   useUnifiedTopology: true,
-    // });
-    // const dbo = db.db(DatabaseName);
-
-    const db = await getMongoClient(DatabaseName);
-
-    let result = db
-      .collection(collection)
-      .aggregate(arrAggregation, { cursor: { batchSize: 100 } });
-    // await db.close();
-
-    return {
-      cursor: result,
-      // closeConnection: () => {
-      //   db.close();
-      // },
-    };
   } catch (error) {
     console.log(error);
     return [];
