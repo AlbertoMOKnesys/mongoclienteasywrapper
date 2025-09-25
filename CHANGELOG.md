@@ -158,7 +158,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **`FindPaginatedOptions`** refactored to use the new conversion helpers.
+- **`FindPaginatedOptions`** FindPaginated with flexible options.
 - **`convertId copy`** (Draft file) Now supports deep recursion, MongoDB operators, and smart hex validation for safer ID conversion
 
 ### Changed
@@ -170,5 +170,26 @@ All notable changes to this project will be documented in this file.
 - Added inline English JSDoc comments to:
 
   - `FindPaginatedOptions`
+
+---
+
+## [1.2.5] – 2025‑09‑25
+
+### Added
+
+- **`AggregationMongoCursor`** added optional `batchSize` parameter (default set to `100`).
+
+### Changed
+
+- **`AggregationMongoCursor`** refactored to use the new conversion helpers for consistency.
+
+### Fixed
+
+- _(no fixes in this release)_
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `AggregationMongoCursor`
 
 ---
