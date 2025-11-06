@@ -402,6 +402,54 @@ async function FindManyLimit(query, limit, collection, databaseName) {
 }
 
 /**
+ * FindManyOptions
+ * ----------------------------------------------------
+ * Retrieves documents matching `query` with configurable options
+ * such as sorting, projection, and limit.
+ *
+ * @param {Object}  query           - Filter to locate documents.
+ * @param {string}  collection      - Collection name.
+ *  @param {string} [databaseName]   - Optional DB name; defaults to global `mongoDb`.
+ * @param {Object} [options]        - Configuration options:
+ * @param {Object} [options.sort]   - Sort specification (e.g. `{ _id: -1, name: 1 }`).
+ *                                   Defaults to `{ _id: 1 }` for consistency.
+ * @param {Object} [options.projection] - Fields to include/exclude (e.g. `{ name: 1, _id: 0 }`).
+ * @param {number} [options.limit]  - Maximum number of documents to return.
+ * @param {number} [options.skip]   - Number of documents to skip (for pagination).
+ *  @return {Promise<Array>}        Array of matched documents, or empty array `[]` on error.
+ *
+ */
+async function FindManyOptions(query, collection, databaseName, options = {}) {
+  try {
+    // Determine which database to use
+    const dbName = databaseName || mongoDb;
+
+    // Obtain a DB handle
+    const db = await getMongoClient(dbName);
+
+    // Extract options with defaults
+    const {
+      sort = { _id: 1 }, // Default: ascending by _id (maintains compatibility)
+      projection = {}, // Fields to include/exclude
+      limit = 0, // Limit of documents to return
+      skip = 0, // Number of documents to skip
+      ...mongoOptions // Any other MongoDB option
+    } = options;
+
+    /* -------- Core operation -------- */
+    let cursor = db
+      .collection(collection)
+      .find(query, { projection, ...mongoOptions })
+      .sort(sort)
+      .limit(limit);
+    return await cursor.toArray();
+  } catch (error) {
+    console.log("FindManyOptions error:", error);
+    return [];
+  }
+}
+
+/**
  * FindOne
  * ----------------------------------------------------
  * Retrieves the first document that matches the provided filter
@@ -1755,6 +1803,7 @@ module.exports = function (connectionString, defaultDbName) {
     FindLimitLast,
     FindMany,
     FindManyLimit,
+    FindManyOptions,
     FindOne,
     FindOneAndUpdate,
     FindOneLast,

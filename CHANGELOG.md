@@ -193,3 +193,29 @@ All notable changes to this project will be documented in this file.
   - `AggregationMongoCursor`
 
 ---
+
+## [1.2.6] – 2025‑11‑06
+
+### Added
+
+- **`FindManyOptions`** new method to retrieve documents with configurable options:
+  - `sort`: Sort specification (defaults to `{ _id: 1 }`)
+  - `projection`: Fields to include/exclude
+  - `limit`: Maximum number of documents (0 = no limit)
+  - `skip`: Number of documents to skip (useful for pagination)
+  - Supports additional MongoDB cursor options via spread operator
+
+### Changed
+
+- _(no changes in this release)_
+
+### Fixed
+
+- _(no fixes in this release)_
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `FindManyOptions`
+
+---
