@@ -4,19 +4,236 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.1.4] - 2025-06-13
-
-### Added
-
-- `FindOneAndUpdate`: Adds support for updating and returning a document in a single operation.
-- `UpdateOneRaw`: Directly updates documents using raw MongoDB update syntax with flexible options.
+## [1.2.9] – 2026-05-26
 
 ### Changed
 
-- Improved `FindOne` to support conversion of ObjectIds and Dates before querying.
-- Updated `UpdateMongo` function to the new convention
+- **`SavetoMongoCallback`** converted from legacy callback-based pattern to `async`/`await` using `getMongoClient`.
+- **`DeleteMongoCallback`** converted from legacy callback-based pattern to `async`/`await` using `getMongoClient`.
+- All remaining functions refactored to project conventions: `const` everywhere, `databaseName || mongoDb` pattern, no `var`, direct returns without unnecessary intermediate variables.
+- **`module.exports`** export order fixed: `UpdateOneRaw` now listed before `UpsertMongo` (alphabetical order).
+- Removed outdated `indexNew.js` draft file.
+- Removed commented-out legacy code across `index.js` (`db.close()` calls, old `MongoClient.connect` blocks, debug `console.log` statements).
+
+### Documentation
+
+- Added inline English JSDoc to:
+  - `ND_PopulateAuto`
+  - `SavetoMongoCallback`
+  - `InsertIndexUnique`
+  - `ND_DeleteMongoby_id`
+  - `getIndexs`
+  - `UpdateMongoManyRename`
+  - `UpdateMongoBy_idPush`
+  - `UpdateMongoManyBy_idPush`
+  - `UpdateMongoManyBy_idAddToSet`
+  - `UpdateMongoManyBy_idPull`
+  - `UpdateMongoManyPullIDToCollectionPull`
+  - `UpdateMongoBy_idRemoveProperty`
+  - `UpdateBy_idPush_id`
+  - `DeleteMongoCallback`
+  - `GetNextSequenceValue`
+  - `ND_FindOne`
+  - `ND_FindMany`
+  - `ND_FindPaginated`
+  - `Populate`
+  - `PopulateAuto`
+  - `FindIDOnePopulated`
+  - `ND_FindIDOnePopulated`
+  - `UpdateMongoManyPull`
+- Removed all Spanish-language inline comments from `index.js` (English only).
+
+---
+
+## [1.2.8] – 2026‑02‑25
+
+### Added
+
+- _(no additions in this release)_
+
+## Changed
+
+- `Count`: Replaced deprecated `.count()` with `.countDocuments()` for MongoDB driver compatibility.
+- `Count`: Error handler now returns `0` instead of `{}` for consistent numeric return type.
+
+## Fixed
+
+- _(no additions in this release)_
+
+## Documentation
+
+- _(no additions in this release)_
+
+---
+
+## [1.2.7] – 2026‑02‑06
+
+### Added
+
+- _(no additions in this release)_
+
+## Changed
+
+- `MongoDBConnectionManager.connect`: Removed deprecated `useNewUrlParser` and `useUnifiedTopology` options (not needed in MongoDB Driver 4.x+)
+- `MongoDBConnectionManager.connect`: Client is now assigned only after successful connection to prevent inconsistent state on connection failure
+- `MongoDBConnectionManager.getDatabase`: Changed from async to sync method since `client.db()` is synchronous
+
+## Fixed
+
+- Fixed potential bug where `this.client` could be assigned before connection was established, causing inconsistent state if connection failed
+
+## Documentation
+
+- Updated inline comments for MongoDB Driver 4.x+ compatibility
+
+---
+
+## [1.2.6] – 2025‑11‑06
+
+### Added
+
+- **`FindManyOptions`** new method to retrieve documents with configurable options:
+- `sort`: Sort specification (defaults to `{ _id: 1 }`)
+- `projection`: Fields to include/exclude
+- `limit`: Maximum number of documents (0 = no limit)
+- `skip`: Number of documents to skip (useful for pagination)
+- Supports additional MongoDB cursor options via spread operator
+
+### Changed
+
+- _(no changes in this release)_
 
 ### Fixed
+
+- _(no fixes in this release)_
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `FindManyOptions`
+
+---
+
+## [1.2.5] – 2025‑09‑25
+
+### Added
+
+- **`AggregationMongoCursor`** added optional `batchSize` parameter (default set to `100`).
+
+### Changed
+
+- **`AggregationMongoCursor`** refactored to use the new conversion helpers for consistency.
+
+### Fixed
+
+- _(no fixes in this release)_
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `AggregationMongoCursor`
+
+---
+
+## [1.2.4] – 2025‑09‑04
+
+### Added
+
+- **`FindPaginatedOptions`** FindPaginated with flexible options.
+- **`convertId copy`** (Draft file) Now supports deep recursion, MongoDB operators, and smart hex validation for safer ID conversion
+
+### Changed
+
+### Fixed
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `FindPaginatedOptions`
+
+---
+
+## [1.2.3] – 2025‑07‑17
+
+### Added
+
+### Changed
+
+- **`Distinct`** refactored to use the new conversion helpers.
+- **`FindPaginated`** refactored to use the new conversion helpers.
+- **`Count`** refactored to use the new conversion helpers.
+- **`FindLimitLast`** refactored to use the new conversion helpers.
+- **`FindPaginated`** refactored to use the new conversion helpers.
+
+### Fixed
+
+- **`FindMany`** method returns parameters without options.
+
+### Documentation
+
+- Added inline English JSDoc comments to:
+  - `Distinct`
+  - `FindPaginated`
+  - `Count`
+  - `FindLimitLast`
+  - `FindPaginated`
+
+---
+
+## [1.2.2]  ‑  2025‑07‑16
+
+### Added
+
+- **Generic pagination support** across services.
+  - Query params `page` & `limit` now parsed and validated (auto‑cast to numbers).
+- **Pagination test suite (shared collection)**:
+  - Seeds numbered docs into the existing test collection.
+  - `testFindManyPagination()` asserts skip/limit + ordering.
+  - `testFindManyProjection()` asserts projection exclusion.
+
+### Changed
+
+- **`FindMany`**
+  - New 4th param `options` supporting `projection`, `sort`, `skip`, `limit`, `hint`, etc.
+  - Explicitly applies `skip`/`limit` on the cursor (handles `0` correctly).
+  - Backward‑compatible: defaults to `{}` when omitted.
+- Updated service methods that paginate (e.g., Transactions) to pass `page`/`limit` options and return `{ meta, data }`.
+- Added pagination‑aware log messages (include page & limit).
+
+### Fixed
+
+- Incorrect page‑1 results when `skip=0` (falsy check) — now respected.
+- Projection leakage in tests: wrapper honors `projection` exclusions.
+
+### Documentation
+
+- Expanded JSDoc for **`FindMany`** to document the `options` argument and show pagination usage.
+- Added comments to pagination test helpers explaining seed/cleanup flow.
+
+---
+
+## [1.2.1]  ‑  2025‑07‑15
+
+### Added
+
+- **Generic pagination support**
+  - `PaginationQueryDto` (`src/common/dto/pagination-query.dto.ts`)  
+    Handles `page` and `limit` query params with validation/auto‑casting.
+  - Helper `countDocuments` in `mongoclienteasywrapper` for total‑record count (used by paginated endpoints).
+
+### Changed
+
+- **`FindMany`**
+  - New 4th parameter **`options`** (projection, sort, skip, limit, hint, …).
+  - Backward‑compatible – defaults to `{}` when omitted.
+  - Log messages now include page and limit information.
+- **Other services** that rely on `FindMany` updated to pass `options` when appropriate.
+
+### Fixed
+
+### Documentation
+
+- Added detailed JSDoc to **`FindMany`** illustrating the new `options` argument and sample pagination usage.
 
 ---
 
@@ -68,194 +285,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.1]  ‑  2025‑07‑15
+## [1.1.4] - 2025-06-13
 
 ### Added
 
-- **Generic pagination support**
-  - `PaginationQueryDto` (`src/common/dto/pagination-query.dto.ts`)  
-    Handles `page` and `limit` query params with validation/auto‑casting.
-  - Helper `countDocuments` in `mongoclienteasywrapper` for total‑record count (used by paginated endpoints).
+- `FindOneAndUpdate`: Adds support for updating and returning a document in a single operation.
+- `UpdateOneRaw`: Directly updates documents using raw MongoDB update syntax with flexible options.
 
 ### Changed
 
-- **`FindMany`**
-  - New 4th parameter **`options`** (projection, sort, skip, limit, hint, …).
-  - Backward‑compatible – defaults to `{}` when omitted.
-  - Log messages now include page and limit information.
-- **Other services** that rely on `FindMany` updated to pass `options` when appropriate.
+- Improved `FindOne` to support conversion of ObjectIds and Dates before querying.
+- Updated `UpdateMongo` function to the new convention
 
 ### Fixed
-
-### Documentation
-
-- Added detailed JSDoc to **`FindMany`** illustrating the new `options` argument and sample pagination usage.
-
----
-
-## [1.2.2]  ‑  2025‑07‑16
-
-### Added
-
-- **Generic pagination support** across services.
-  - Query params `page` & `limit` now parsed and validated (auto‑cast to numbers).
-- **Pagination test suite (shared collection)**:
-  - Seeds numbered docs into the existing test collection.
-  - `testFindManyPagination()` asserts skip/limit + ordering.
-  - `testFindManyProjection()` asserts projection exclusion.
-
-### Changed
-
-- **`FindMany`**
-  - New 4th param `options` supporting `projection`, `sort`, `skip`, `limit`, `hint`, etc.
-  - Explicitly applies `skip`/`limit` on the cursor (handles `0` correctly).
-  - Backward‑compatible: defaults to `{}` when omitted.
-- Updated service methods that paginate (e.g., Transactions) to pass `page`/`limit` options and return `{ meta, data }`.
-- Added pagination‑aware log messages (include page & limit).
-
-### Fixed
-
-- Incorrect page‑1 results when `skip=0` (falsy check) — now respected.
-- Projection leakage in tests: wrapper honors `projection` exclusions.
-
-### Documentation
-
-- Expanded JSDoc for **`FindMany`** to document the `options` argument and show pagination usage.
-- Added comments to pagination test helpers explaining seed/cleanup flow.
-
----
-
-## [1.2.3] – 2025‑07‑17
-
-### Added
-
-### Changed
-
-- **`Distinct`** refactored to use the new conversion helpers.
-- **`FindPaginated`** refactored to use the new conversion helpers.
-- **`Count`** refactored to use the new conversion helpers.
-- **`FindLimitLast`** refactored to use the new conversion helpers.
-- **`FindPaginated`** refactored to use the new conversion helpers.
-
-### Fixed
-
-- **`FindMany`** method returns parameters without options.
-
-### Documentation
-
-- Added inline English JSDoc comments to:
-  - `Distinct`
-  - `FindPaginated`
-  - `Count`
-  - `FindLimitLast`
-  - `FindPaginated`
-
----
-
-## [1.2.4] – 2025‑09‑04
-
-### Added
-
-- **`FindPaginatedOptions`** FindPaginated with flexible options.
-- **`convertId copy`** (Draft file) Now supports deep recursion, MongoDB operators, and smart hex validation for safer ID conversion
-
-### Changed
-
-### Fixed
-
-### Documentation
-
-- Added inline English JSDoc comments to:
-  - `FindPaginatedOptions`
-
----
-
-## [1.2.5] – 2025‑09‑25
-
-### Added
-
-- **`AggregationMongoCursor`** added optional `batchSize` parameter (default set to `100`).
-
-### Changed
-
-- **`AggregationMongoCursor`** refactored to use the new conversion helpers for consistency.
-
-### Fixed
-
-- _(no fixes in this release)_
-
-### Documentation
-
-- Added inline English JSDoc comments to:
-  - `AggregationMongoCursor`
-
----
-
-## [1.2.6] – 2025‑11‑06
-
-### Added
-
-- **`FindManyOptions`** new method to retrieve documents with configurable options:
-- `sort`: Sort specification (defaults to `{ _id: 1 }`)
-- `projection`: Fields to include/exclude
-- `limit`: Maximum number of documents (0 = no limit)
-- `skip`: Number of documents to skip (useful for pagination)
-- Supports additional MongoDB cursor options via spread operator
-
-### Changed
-
-- _(no changes in this release)_
-
-### Fixed
-
-- _(no fixes in this release)_
-
-### Documentation
-
-- Added inline English JSDoc comments to:
-  - `FindManyOptions`
-
----
-
-## [1.2.7] – 2026‑02‑06
-
-### Added
-
-- _(no additions in this release)_
-
-## Changed
-
-- `MongoDBConnectionManager.connect`: Removed deprecated `useNewUrlParser` and `useUnifiedTopology` options (not needed in MongoDB Driver 4.x+)
-- `MongoDBConnectionManager.connect`: Client is now assigned only after successful connection to prevent inconsistent state on connection failure
-- `MongoDBConnectionManager.getDatabase`: Changed from async to sync method since `client.db()` is synchronous
-
-## Fixed
-
-- Fixed potential bug where `this.client` could be assigned before connection was established, causing inconsistent state if connection failed
-
-## Documentation
-
-- Updated inline comments for MongoDB Driver 4.x+ compatibility
-
----
-
-## [1.2.8] – 2026‑02‑25
-
-### Added
-
-- _(no additions in this release)_
-
-## Changed
-
-- `Count`: Replaced deprecated `.count()` with `.countDocuments()` for MongoDB driver compatibility.
-- `Count`: Error handler now returns `0` instead of `{}` for consistent numeric return type.
-
-## Fixed
-
-- _(no additions in this release)_
-
-## Documentation
-
-- _(no additions in this release)_
 
 ---
