@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.10] – 2026-05-27
+
+### Changed
+
+- Removed unused legacy files: `common.js`, `assing.js` (broken imports, dead code).
+- Moved `index-old.js` to `legacy/` folder.
+
+### Tests
+
+- Added test infrastructure: `assert` module, `runTest` helper with pass/fail counters, proper `process.exit(1)` on failure.
+- Added assertions to all 10 existing tests (previously only logged results without validation).
+- Fixed `ObjectId()` calls without `new` across all test data (~15 occurrences).
+- Fixed `error.me` typo in `ND_PopulateAuto` test.
+- Added 6 new Core CRUD tests: `FindOne`, `FindMany`, `FindManyLimit`, `UpdateMongo`, `UpsertMongo`, `Count`.
+- Total tests: 10 → 23.
+
+### Documentation
+
+- Rewrote `README.md`: added npm/license badges, setup with `defaultDbName`, ~20 functions documented with examples, remaining ~30 listed with signatures, organized by category (Insert, Find, Pagination, Update, Delete, Aggregation, Population, ND\_, Other), added "Important Notes" section.
+- Added JSDoc to `MongoDBConnectionManager` class.
+- Cleaned duplicate comment in `mongoDBConnectionManager.js` `isConnected()`.
+
+---
+
 ## [1.2.9] – 2026-05-26
 
 ### Changed
