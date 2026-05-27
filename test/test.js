@@ -1,7 +1,8 @@
 // test.js
+const assert = require("assert");
 const { ObjectId } = require("mongodb");
 const MongoWraper = require("../index")(
-  "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.3.0"
+  "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.3.0",
 );
 
 const testCollection = "testCollection";
@@ -11,22 +12,21 @@ const testIdDocument1 = "624e09075bda143a913c5d61";
 const testIdDocument2 = "624e09075bda143a913c5d62";
 const testIdDocument3 = "624e09075bda143a913c5d63";
 
-// Create a sample document to insert
 const arrayToSave = [
   {
-    _id: ObjectId(testIdDocument1),
+    _id: new ObjectId(testIdDocument1),
     name: "Test Document 1",
     status: "active",
     datetime: new Date(),
   },
   {
-    _id: ObjectId(testIdDocument2),
+    _id: new ObjectId(testIdDocument2),
     name: "Test Document 2",
     status: "active",
     datetime: new Date(),
   },
   {
-    _id: ObjectId(testIdDocument3),
+    _id: new ObjectId(testIdDocument3),
     name: "Test Document 3",
     status: "active",
     datetime: new Date(),
@@ -39,309 +39,399 @@ const testIdDocument6 = "624e09075bda143a913c5d66";
 
 const arrayToSaveReference = [
   {
-    _id: ObjectId(testIdDocument4),
+    _id: new ObjectId(testIdDocument4),
     name: "Test Document 4",
-    testCollection_id: ObjectId(testIdDocument1),
+    testCollection_id: new ObjectId(testIdDocument1),
     status: "active",
     datetime: new Date(),
   },
   {
-    _id: ObjectId(testIdDocument5),
+    _id: new ObjectId(testIdDocument5),
     name: "Test Document 5",
-    testCollection_id: ObjectId(testIdDocument2),
+    testCollection_id: new ObjectId(testIdDocument2),
     status: "active",
     datetime: new Date(),
   },
   {
-    _id: ObjectId(testIdDocument6),
+    _id: new ObjectId(testIdDocument6),
     name: "Test Document 6",
-    testCollection_id: ObjectId(testIdDocument6),
+    testCollection_id: new ObjectId(testIdDocument6),
     status: "active",
     datetime: new Date(),
   },
 ];
 
-const testSavetoMongo = async () => {
+let passed = 0;
+let failed = 0;
+
+async function runTest(name, fn) {
   try {
-    console.log("SavetoMongo test");
-
-    // Create a sample document to insert
-    const documentToSave = {
-      _id: ObjectId(testIdDocument1),
-      name: "Test Document",
-      status: "active",
-      datetime: new Date(),
-    };
-
-    // Call the SavetoMongo function
-    const result = await MongoWraper.SavetoMongo(
-      documentToSave,
-      testCollection,
-      testDB
-    );
-
-    // Log the result of the insertion
-    console.log("Insert result:", result);
+    await fn();
+    passed++;
+    console.log(`  ✓ ${name}`);
   } catch (error) {
-    console.error("SavetoMongo test failed:", error);
+    failed++;
+    console.error(`  ✗ ${name} — ${error.message}`);
   }
+}
+
+// --------------- Existing tests with assertions ---------------
+
+const testSavetoMongo = async () => {
+  const documentToSave = {
+    _id: new ObjectId(testIdDocument1),
+    name: "Test Document",
+    status: "active",
+    datetime: new Date(),
+  };
+
+  const result = await MongoWraper.SavetoMongo(
+    documentToSave,
+    testCollection,
+    testDB,
+  );
+
+  assert.strictEqual(result.acknowledged, true, "insert should be acknowledged");
+  assert.ok(result.insertedId, "insertedId should exist");
 };
 
 const testFindIDOne = async () => {
-  try {
-    console.log("FindIDOne test");
+  const result = await MongoWraper.FindIDOne(
+    testIdDocument1,
+    testCollection,
+    testDB,
+  );
 
-    // Call the FindIDOne function
-    const result = await MongoWraper.FindIDOne(
-      testIdDocument1,
-      testCollection,
-      testDB
-    );
-
-    // Log the result of the Find id function
-    console.log(result);
-  } catch (error) {
-    console.error("FindIDOne test failed:", error);
-  }
+  assert.ok(result._id, "document should have _id");
+  assert.strictEqual(result.name, "Test Document", "name should match");
 };
 
 const testUpdateMongoBy_id = async () => {
-  try {
-    console.log("UpdateMongoBy_id test");
+  const result = await MongoWraper.UpdateMongoBy_id(
+    testIdDocument1,
+    { newProperty: "newValue" },
+    testCollection,
+    testDB,
+  );
 
-    // Call the UpdateMongoBy_id function
-    const result = await MongoWraper.UpdateMongoBy_id(
-      testIdDocument1,
-      {
-        newProperty: "newValue",
-      },
-      testCollection,
-      testDB
-    );
-
-    // Log the result of UpdateMongoBy_id function
-    console.log(result);
-  } catch (error) {
-    console.error("UpdateMongoBy_id test failed:", error);
-  }
+  assert.strictEqual(result.matchedCount, 1, "should match 1 document");
+  assert.strictEqual(result.modifiedCount, 1, "should modify 1 document");
 };
 
 const testDeleteMongoby_id = async () => {
-  try {
-    console.log("DeleteMongoby_id test");
+  const result = await MongoWraper.DeleteMongoby_id(
+    testIdDocument1,
+    testCollection,
+    testDB,
+  );
 
-    // Call the DeleteMongoby_id function
-    const result = await MongoWraper.DeleteMongoby_id(
-      testIdDocument1,
-      testCollection,
-      testDB
-    );
-
-    // Log the result of the DeleteMongoby_id function
-    console.log(result);
-  } catch (error) {
-    console.error("DeleteMongoby_id test failed:", error);
-  }
+  assert.strictEqual(result.deletedCount, 1, "should delete 1 document");
 };
 
 const testSavetoMongoMany = async () => {
-  try {
-    console.log("SavetoMongoMany test");
+  const result = await MongoWraper.SavetoMongoMany(
+    arrayToSave,
+    testCollection,
+    testDB,
+  );
 
-    // Call the SavetoMongo function
-    const result = await MongoWraper.SavetoMongoMany(
-      arrayToSave,
-      testCollection,
-      testDB
-    );
-
-    // Log the result of the insertion
-    console.log("Insert result:", result);
-  } catch (error) {
-    console.error("SavetoMongo test failed:", error);
-  }
+  assert.strictEqual(result.acknowledged, true, "insert should be acknowledged");
+  assert.strictEqual(result.insertedCount, 3, "should insert 3 documents");
 };
 
 const testAggregationMongo = async () => {
-  try {
-    console.log("Testing AggregationMongo");
-
-    // Define an aggregation pipeline
-    const aggregationPipeline = [
-      {
-        $match: {
-          _id: {
-            $in: [
-              ObjectId(testIdDocument1),
-              ObjectId(testIdDocument2),
-              ObjectId(testIdDocument3),
-            ],
-          },
-          status: { $ne: "deleted" },
+  const aggregationPipeline = [
+    {
+      $match: {
+        _id: {
+          $in: [
+            new ObjectId(testIdDocument1),
+            new ObjectId(testIdDocument2),
+            new ObjectId(testIdDocument3),
+          ],
         },
-      }, // Example stage to match documents where status is not "deleted"
-      // { $group: { _id: "$category", total: { $sum: "$amount" } } }, // Example stage to group by category and sum amounts
-      { $sort: { _id: -1 } }, // Example stage to sort results by _id in descending order
-    ];
+        status: { $ne: "deleted" },
+      },
+    },
+    { $sort: { _id: -1 } },
+  ];
 
-    // console.log("Pipeline:", aggregationPipeline);
+  const result = await MongoWraper.AggregationMongo(
+    aggregationPipeline,
+    testCollection,
+    testDB,
+  );
 
-    // Call AggregationMongo with the pipeline, collection, and database
-    const result = await MongoWraper.AggregationMongo(
-      aggregationPipeline,
-      testCollection,
-      testDB
-    );
-
-    // Log the results of the aggregation
-    console.log("Aggregation result:", result);
-  } catch (error) {
-    console.error("AggregationMongo test failed:", error);
-  }
+  assert.strictEqual(result.length, 3, "should return 3 documents");
+  assert.strictEqual(
+    result[0]._id.toString(),
+    testIdDocument3,
+    "first result should be the last inserted (desc sort)",
+  );
 };
 
-const testDeleteMongo = async (arrayToRemove, collection) => {
-  try {
-    console.log("DeleteMongo test");
+const testDeleteMongo = async (arrayToRemove, collection, expectedCount) => {
+  const query = { _id: { $in: arrayToRemove } };
+  const result = await MongoWraper.DeleteMongo(query, collection, testDB);
 
-    const query = {
-      _id: {
-        $in: arrayToRemove,
-      },
-    };
-
-    // Call the DeleteMongoby_id function
-    const result = await MongoWraper.DeleteMongo(query, collection, testDB);
-
-    // Log the result of the DeleteMongo function
-    console.log(result);
-  } catch (error) {
-    console.error("DeleteMongo test failed:", error);
-  }
+  assert.strictEqual(result.acknowledged, true, "delete should be acknowledged");
+  assert.strictEqual(
+    result.deletedCount,
+    expectedCount,
+    `should delete ${expectedCount} documents`,
+  );
 };
 
 const testSaveManyBatch = async () => {
-  try {
-    console.log("SaveManyBatch test");
+  const result = await MongoWraper.SaveManyBatch(
+    arrayToSaveReference,
+    testCollection2,
+    testDB,
+  );
 
-    // Call the SaveManyBatch function
-    const result = await MongoWraper.SaveManyBatch(
-      arrayToSaveReference,
-      testCollection2,
-      testDB
-    );
-
-    // Log the result of the insertion
-    console.log("Insert result:", result);
-  } catch (error) {
-    console.error("SaveManyBatch test failed:", error);
-  }
+  assert.strictEqual(result.acknowledged, true, "insert should be acknowledged");
+  assert.strictEqual(result.insertedCount, 3, "should insert 3 documents");
 };
 
 const testUpdateMongoMany = async (collection) => {
-  try {
-    console.log("UpdateMongoMany test");
+  const result = await MongoWraper.UpdateMongoMany(
+    { status: "active" },
+    { newProperty: "newValue" },
+    collection,
+    testDB,
+  );
 
-    // Call the UpdateMongoMany function
-    const result = await MongoWraper.UpdateMongoMany(
-      {
-        status: "active",
-      },
-      {
-        newProperty: "newValue",
-      },
-      collection,
-      testDB
-    );
-
-    // Log the result of UpdateMongoMany function
-    console.log(result);
-  } catch (error) {
-    console.error("UpdateMongoMany test failed:", error);
-  }
+  assert.strictEqual(result.matchedCount, 3, "should match 3 documents");
+  assert.strictEqual(result.modifiedCount, 3, "should modify 3 documents");
 };
 
-const ND_PopulateAuto = async () => {
-  try {
-    console.log("ND_PopulateAuto test");
+const testND_PopulateAuto = async () => {
+  const result = await MongoWraper.ND_PopulateAuto(
+    { _id: testIdDocument4 },
+    testCollection2,
+    testDB,
+  );
 
-    // Call the ND_PopulateAuto function
-    const result = await MongoWraper.ND_PopulateAuto(
-      { _id: testIdDocument4 },
-      testCollection2,
-      testDB
-    );
-
-    // Log the result of the ND_PopulateAuto function
-    console.log("result", result);
-    console.log(`result[0].testCollection`);
-    console.log(result[0].testCollection);
-  } catch (error) {
-    console.error("ND_PopulateAuto test failed:", error.me);
-    throw new Error(error.message);
-  }
+  assert.ok(Array.isArray(result), "result should be an array");
+  assert.ok(result.length >= 1, "should return at least 1 document");
+  assert.ok(
+    Array.isArray(result[0].testCollection),
+    "testCollection should be populated as array",
+  );
+  assert.strictEqual(
+    result[0].testCollection[0]._id.toString(),
+    testIdDocument1,
+    "populated doc should match referenced _id",
+  );
 };
 
-// Run all tests in sequence
+// --------------- Core CRUD tests ---------------
+
+const testFindOne = async () => {
+  const result = await MongoWraper.FindOne(
+    { name: "Test Document 1" },
+    testCollection,
+    testDB,
+  );
+
+  assert.ok(result, "should return a document");
+  assert.ok(result._id, "document should have _id");
+  assert.strictEqual(result.name, "Test Document 1", "name should match");
+};
+
+const testFindMany = async () => {
+  const result = await MongoWraper.FindMany(
+    {
+      _id: {
+        $in: [
+          new ObjectId(testIdDocument1),
+          new ObjectId(testIdDocument2),
+          new ObjectId(testIdDocument3),
+        ],
+      },
+      status: "active",
+    },
+    testCollection,
+    testDB,
+  );
+
+  assert.ok(Array.isArray(result), "should return an array");
+  assert.strictEqual(result.length, 3, "should find 3 active documents");
+};
+
+const testFindManyLimit = async () => {
+  const result = await MongoWraper.FindManyLimit(
+    {
+      _id: {
+        $in: [
+          new ObjectId(testIdDocument1),
+          new ObjectId(testIdDocument2),
+          new ObjectId(testIdDocument3),
+        ],
+      },
+    },
+    2,
+    testCollection,
+    testDB,
+  );
+
+  assert.ok(Array.isArray(result), "should return an array");
+  assert.strictEqual(result.length, 2, "should return only 2 documents");
+};
+
+const testUpdateMongo = async () => {
+  const result = await MongoWraper.UpdateMongo(
+    { name: "Test Document 1" },
+    { updatedField: "updated" },
+    testCollection,
+    testDB,
+  );
+
+  assert.strictEqual(result.matchedCount, 1, "should match 1 document");
+  assert.strictEqual(result.modifiedCount, 1, "should modify 1 document");
+};
+
+const testUpsertMongo = async () => {
+  const upsertId = "624e09075bda143a913c5d70";
+
+  const insertResult = await MongoWraper.UpsertMongo(
+    { _id: new ObjectId(upsertId) },
+    { name: "Upserted Doc", status: "active" },
+    testCollection,
+    testDB,
+  );
+
+  assert.ok(insertResult.upsertedId, "should insert new document");
+
+  const updateResult = await MongoWraper.UpsertMongo(
+    { _id: new ObjectId(upsertId) },
+    { name: "Upserted Doc", status: "updated" },
+    testCollection,
+    testDB,
+  );
+
+  assert.strictEqual(updateResult.matchedCount, 1, "should match existing document");
+  assert.strictEqual(updateResult.upsertedCount, 0, "should not insert again");
+
+  await MongoWraper.DeleteMongoby_id(upsertId, testCollection, testDB);
+};
+
+const testCount = async () => {
+  const result = await MongoWraper.Count(
+    {
+      _id: {
+        $in: [
+          new ObjectId(testIdDocument1),
+          new ObjectId(testIdDocument2),
+          new ObjectId(testIdDocument3),
+        ],
+      },
+    },
+    testCollection,
+    testDB,
+  );
+
+  assert.strictEqual(typeof result, "number", "should return a number");
+  assert.strictEqual(result, 3, "should count 3 documents");
+};
+
+// --------------- Test runner ---------------
+
 const runTests = async () => {
   console.time("test");
 
-  // First sequence set of functions to test
-  await testSavetoMongo();
-  await testFindIDOne();
-  await testUpdateMongoBy_id();
-  await testDeleteMongoby_id();
+  // Group 1: Single document CRUD
+  console.log("\nGroup 1: Single document CRUD");
+  await runTest("SavetoMongo", testSavetoMongo);
+  await runTest("FindIDOne", testFindIDOne);
+  await runTest("UpdateMongoBy_id", testUpdateMongoBy_id);
+  await runTest("DeleteMongoby_id", testDeleteMongoby_id);
 
-  // Second sequence set of functions to test
-  await testSavetoMongoMany();
-  await testAggregationMongo();
-  await testDeleteMongo(
-    [
-      ObjectId("624e09075bda143a913c5d61"),
-      ObjectId("624e09075bda143a913c5d62"),
-      ObjectId("624e09075bda143a913c5d63"),
-    ],
-    testCollection
+  // Group 2: Bulk operations + aggregation
+  console.log("\nGroup 2: Bulk operations + aggregation");
+  await runTest("SavetoMongoMany", testSavetoMongoMany);
+  await runTest("AggregationMongo", testAggregationMongo);
+  await runTest("DeleteMongo", () =>
+    testDeleteMongo(
+      [
+        new ObjectId(testIdDocument1),
+        new ObjectId(testIdDocument2),
+        new ObjectId(testIdDocument3),
+      ],
+      testCollection,
+      3,
+    ),
   );
 
-  // Third sequence set of functions to test
-  await testSaveManyBatch();
-  await testUpdateMongoMany(testCollection2);
-  await testDeleteMongo(
-    [
-      ObjectId("624e09075bda143a913c5d64"),
-      ObjectId("624e09075bda143a913c5d65"),
-      ObjectId("624e09075bda143a913c5d66"),
-    ],
-    testCollection2
+  // Group 3: Batch insert + bulk update
+  console.log("\nGroup 3: Batch insert + bulk update");
+  await runTest("SaveManyBatch", testSaveManyBatch);
+  await runTest("UpdateMongoMany", () => testUpdateMongoMany(testCollection2));
+  await runTest("DeleteMongo (collection2)", () =>
+    testDeleteMongo(
+      [
+        new ObjectId(testIdDocument4),
+        new ObjectId(testIdDocument5),
+        new ObjectId(testIdDocument6),
+      ],
+      testCollection2,
+      3,
+    ),
   );
 
-  // Fourth sequence set of functions to test
-  await testSavetoMongoMany();
-  await testSaveManyBatch();
-  await ND_PopulateAuto();
-  await testDeleteMongo(
-    [
-      ObjectId("624e09075bda143a913c5d61"),
-      ObjectId("624e09075bda143a913c5d62"),
-      ObjectId("624e09075bda143a913c5d63"),
-    ],
-    testCollection
+  // Group 4: Population
+  console.log("\nGroup 4: Population");
+  await runTest("SavetoMongoMany (re-insert)", testSavetoMongoMany);
+  await runTest("SaveManyBatch (re-insert refs)", testSaveManyBatch);
+  await runTest("ND_PopulateAuto", testND_PopulateAuto);
+  await runTest("DeleteMongo (cleanup collection1)", () =>
+    testDeleteMongo(
+      [
+        new ObjectId(testIdDocument1),
+        new ObjectId(testIdDocument2),
+        new ObjectId(testIdDocument3),
+      ],
+      testCollection,
+      3,
+    ),
   );
-  await testDeleteMongo(
-    [
-      ObjectId("624e09075bda143a913c5d64"),
-      ObjectId("624e09075bda143a913c5d65"),
-      ObjectId("624e09075bda143a913c5d66"),
-    ],
-    testCollection2
+  await runTest("DeleteMongo (cleanup collection2)", () =>
+    testDeleteMongo(
+      [
+        new ObjectId(testIdDocument4),
+        new ObjectId(testIdDocument5),
+        new ObjectId(testIdDocument6),
+      ],
+      testCollection2,
+      3,
+    ),
   );
 
-  // Exit the process after all tests are complete
-  console.log("All tests passed successfully. \n");
+  // Group 5: Core CRUD (FindOne, FindMany, FindManyLimit, UpdateMongo, UpsertMongo, Count)
+  console.log("\nGroup 5: Core CRUD");
+  await runTest("SavetoMongoMany (setup)", testSavetoMongoMany);
+  await runTest("FindOne", testFindOne);
+  await runTest("FindMany", testFindMany);
+  await runTest("FindManyLimit", testFindManyLimit);
+  await runTest("UpdateMongo", testUpdateMongo);
+  await runTest("UpsertMongo", testUpsertMongo);
+  await runTest("Count", testCount);
+  await runTest("DeleteMongo (cleanup)", () =>
+    testDeleteMongo(
+      [
+        new ObjectId(testIdDocument1),
+        new ObjectId(testIdDocument2),
+        new ObjectId(testIdDocument3),
+      ],
+      testCollection,
+      3,
+    ),
+  );
+
+  // Summary
+  console.log(`\n${passed} passed, ${failed} failed\n`);
   console.timeEnd("test");
-  process.exit(0);
+  process.exit(failed > 0 ? 1 : 0);
 };
 
-// Execute the tests
 runTests();
