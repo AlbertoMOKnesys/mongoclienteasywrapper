@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.10] – 2026-05-27
+## [1.2.11] – 2026-05-29
 
 ### Changed
 
@@ -25,6 +25,8 @@ All notable changes to this project will be documented in this file.
 - Rewrote `README.md`: added npm/license badges, setup with `defaultDbName`, ~20 functions documented with examples, remaining ~30 listed with signatures, organized by category (Insert, Find, Pagination, Update, Delete, Aggregation, Population, ND\_, Other), added "Important Notes" section.
 - Added JSDoc to `MongoDBConnectionManager` class.
 - Cleaned duplicate comment in `mongoDBConnectionManager.js` `isConnected()`.
+- Added "Why use this instead of Mongoose?" comparison table to `README.md`.
+- Improved `package.json` description and keywords for npm search discoverability.
 
 ---
 
