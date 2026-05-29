@@ -5,6 +5,24 @@
 
 > A simple MongoDB wrapper library for common database operations using the `mongodb` 4.x Node.js driver.
 
+## Why use this instead of Mongoose?
+
+| | **mongoclienteasywrapper** | **Mongoose** | **Native Driver** |
+|---|---|---|---|
+| **Schemas required** | No | Yes | No |
+| **Dependencies** | 1 (`mongodb`) | 20+ | 0 (it is the driver) |
+| **Learning curve** | Minimal | Moderate | Low but verbose |
+| **Auto ObjectId conversion** | Yes | Yes | Manual |
+| **Auto date conversion** | Yes | Via schema types | Manual |
+| **Soft-delete built-in** | Yes (`ND_` functions) | Via plugin | Manual |
+| **Population without models** | Yes (auto-inferred) | Yes (schema refs) | Manual `$lookup` |
+| **Connection management** | Automatic singleton | Automatic | Manual |
+| **Boilerplate per operation** | 1 line | 1-2 lines | 5-6 lines |
+
+**Choose this library when** you want the flexibility of the native driver without the repetitive boilerplate, and you don't need schema validation or middleware. One dependency, zero configuration, just call functions.
+
+**Choose Mongoose when** you need strict schema validation, middleware hooks, virtuals, or a large ecosystem of plugins.
+
 ## Installation
 
 ```bash
