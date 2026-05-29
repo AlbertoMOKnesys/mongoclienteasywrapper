@@ -3,6 +3,12 @@
   "version": "1.2.10",
   "description": "Lightweight MongoDB wrapper — simplified CRUD, aggregation, pagination, and population with automatic ObjectId/Date conversion and zero schemas",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "mongoDBConnectionManager.js",
+    "utils/convertId.js",
+    "utils/convertDatetime.js"
+  ],
   "scripts": {
     "test": "node ./test/test.js"
   },
@@ -48,6 +54,9 @@
     "url": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper/issues"
   },
   "homepage": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
     "mongodb": "4.17.2"
   }
