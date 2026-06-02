@@ -4,12 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [1.2.11] – 2026-05-29
+## [1.2.12] – 2026-06-02
 
 ### Changed
 
+- **`ConvertIdtoObjectId`** rewritten with recursive conversion, hex24 validation, `$` operator support, and `console.warn` for invalid ObjectId strings. Replaces the old flat single-level converter.
 - Removed unused legacy files: `common.js`, `assing.js` (broken imports, dead code).
+- Removed draft file `utils/convertId copy.js`.
 - Moved `index-old.js` to `legacy/` folder.
+- Added `files` whitelist to `package.json` — npm only publishes essential files.
+- Added `engines` field (`node >= 14.0.0`) to `package.json`.
+- Added TypeScript type definitions (`index.d.ts`) for all 51 exported functions.
 
 ### Tests
 
@@ -18,15 +23,16 @@ All notable changes to this project will be documented in this file.
 - Fixed `ObjectId()` calls without `new` across all test data (~15 occurrences).
 - Fixed `error.me` typo in `ND_PopulateAuto` test.
 - Added 6 new Core CRUD tests: `FindOne`, `FindMany`, `FindManyLimit`, `UpdateMongo`, `UpsertMongo`, `Count`.
-- Total tests: 10 → 23.
+- Added 8 new `ConvertIdtoObjectId` unit tests: valid hex, invalid string, null, nested objects, `$` operators, arrays, non-id keys, existing ObjectId.
+- Total tests: 10 → 31.
 
 ### Documentation
 
 - Rewrote `README.md`: added npm/license badges, setup with `defaultDbName`, ~20 functions documented with examples, remaining ~30 listed with signatures, organized by category (Insert, Find, Pagination, Update, Delete, Aggregation, Population, ND\_, Other), added "Important Notes" section.
-- Added JSDoc to `MongoDBConnectionManager` class.
-- Cleaned duplicate comment in `mongoDBConnectionManager.js` `isConnected()`.
 - Added "Why use this instead of Mongoose?" comparison table to `README.md`.
 - Improved `package.json` description and keywords for npm search discoverability.
+- Added JSDoc to `MongoDBConnectionManager` class.
+- Cleaned duplicate comment in `mongoDBConnectionManager.js` `isConnected()`.
 
 ---
 

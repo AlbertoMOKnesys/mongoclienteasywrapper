@@ -335,6 +335,61 @@ const testCount = async () => {
   assert.strictEqual(result, 3, "should count 3 documents");
 };
 
+// --------------- ConvertIdtoObjectId tests ---------------
+
+const { ConvertIdtoObjectId } = require("../utils/convertId");
+
+const testConvertValidHex = async () => {
+  const result = ConvertIdtoObjectId({ user_id: testIdDocument1 });
+  assert.ok(result.user_id instanceof ObjectId, "should convert valid hex to ObjectId");
+  assert.strictEqual(result.user_id.toString(), testIdDocument1);
+};
+
+const testConvertInvalidString = async () => {
+  const result = ConvertIdtoObjectId({ user_id: "not-a-valid-id" });
+  assert.strictEqual(result.user_id, "not-a-valid-id", "should leave invalid string as-is");
+};
+
+const testConvertNull = async () => {
+  const result = ConvertIdtoObjectId({ user_id: null });
+  assert.strictEqual(result.user_id, null, "should leave null as-is");
+};
+
+const testConvertNested = async () => {
+  const result = ConvertIdtoObjectId({
+    data: { order_id: testIdDocument1 },
+  });
+  assert.ok(result.data.order_id instanceof ObjectId, "should convert nested _id fields");
+};
+
+const testConvertOperator = async () => {
+  const result = ConvertIdtoObjectId({
+    $set: { user_id: testIdDocument1 },
+  });
+  assert.ok(result.$set.user_id instanceof ObjectId, "should convert inside $ operators");
+};
+
+const testConvertArray = async () => {
+  const result = ConvertIdtoObjectId({
+    user_id: [testIdDocument1, testIdDocument2],
+  });
+  assert.ok(Array.isArray(result.user_id), "should return an array");
+  assert.ok(result.user_id[0] instanceof ObjectId, "should convert array items to ObjectId");
+  assert.ok(result.user_id[1] instanceof ObjectId, "should convert all array items");
+};
+
+const testConvertSkipsNonIdKeys = async () => {
+  const result = ConvertIdtoObjectId({ name: "Alice", status: "active" });
+  assert.strictEqual(result.name, "Alice", "should not modify non-id fields");
+  assert.strictEqual(result.status, "active", "should preserve other fields");
+};
+
+const testConvertAlreadyObjectId = async () => {
+  const oid = new ObjectId(testIdDocument1);
+  const result = ConvertIdtoObjectId({ user_id: oid });
+  assert.ok(result.user_id instanceof ObjectId, "should keep existing ObjectId");
+};
+
 // --------------- Test runner ---------------
 
 const runTests = async () => {
@@ -427,6 +482,17 @@ const runTests = async () => {
       3,
     ),
   );
+
+  // Group 6: ConvertIdtoObjectId utility
+  console.log("\nGroup 6: ConvertIdtoObjectId");
+  await runTest("Convert valid hex24 to ObjectId", testConvertValidHex);
+  await runTest("Leave invalid string as-is", testConvertInvalidString);
+  await runTest("Leave null as-is", testConvertNull);
+  await runTest("Convert nested _id fields", testConvertNested);
+  await runTest("Convert inside $ operators", testConvertOperator);
+  await runTest("Convert array of ids", testConvertArray);
+  await runTest("Skip non-id keys", testConvertSkipsNonIdKeys);
+  await runTest("Keep existing ObjectId", testConvertAlreadyObjectId);
 
   // Summary
   console.log(`\n${passed} passed, ${failed} failed\n`);
