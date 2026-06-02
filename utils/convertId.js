@@ -1,21 +1,51 @@
 const { ObjectId } = require("mongodb");
 
-/**
- * Converts any property whose name contains "_id" to ObjectId.
- */
-function ConvertIdtoObjectId(obj) {
-  return Object.keys(obj).reduce((acc, key) => {
-    const val = obj[key];
+function isHex24(s) {
+  return typeof s === "string" && /^[a-fA-F0-9]{24}$/.test(s);
+}
 
-    if (key.includes("_id")) {
-      acc[key] = Array.isArray(val)
-        ? val.map((v) => new ObjectId(v))
-        : new ObjectId(val);
-    } else {
-      acc[key] = val;
+/**
+ * Recursively converts any property whose name includes "_id" or ends in "Id"
+ * to ObjectId, both in objects and arrays, without breaking operators ($set, $inc, ...).
+ */
+function ConvertIdtoObjectId(input) {
+  if (input == null) return input;
+
+  if (Array.isArray(input)) {
+    return input.map((v) => ConvertIdtoObjectId(v));
+  }
+
+  if (typeof input !== "object") return input;
+  if (input._bsontype === "ObjectID") return input;
+
+  const out = {};
+  for (const [key, val] of Object.entries(input)) {
+    if (key.startsWith("$")) {
+      out[key] = ConvertIdtoObjectId(val);
+      continue;
     }
-    return acc;
-  }, {});
+
+    const looksLikeIdKey = key.endsWith("_id") || key.endsWith("Id");
+    if (looksLikeIdKey) {
+      if (Array.isArray(val)) {
+        out[key] = val.map((v) =>
+          isHex24(v) ? new ObjectId(v) : ConvertIdtoObjectId(v),
+        );
+      } else if (isHex24(val)) {
+        out[key] = new ObjectId(val);
+      } else if (typeof val === "string" && val.length > 0) {
+        console.warn(
+          `ConvertIdtoObjectId: "${key}" contains "${val}" which is not a valid ObjectId`,
+        );
+        out[key] = val;
+      } else {
+        out[key] = ConvertIdtoObjectId(val);
+      }
+    } else {
+      out[key] = ConvertIdtoObjectId(val);
+    }
+  }
+  return out;
 }
 
 module.exports = { ConvertIdtoObjectId };
