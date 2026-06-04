@@ -1,8 +1,16 @@
 {
   "name": "mongoclienteasywrapper",
-  "version": "1.2.8",
-  "description": "Easy wrapper for mongoclient",
+  "version": "1.2.12",
+  "description": "Lightweight MongoDB wrapper — simplified CRUD, aggregation, pagination, and population with automatic ObjectId/Date conversion and zero schemas",
   "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "mongoDBConnectionManager.js",
+    "utils/convertId.js",
+    "utils/convertDatetime.js"
+  ],
   "scripts": {
     "test": "node ./test/test.js"
   },
@@ -11,17 +19,20 @@
     "url": "git+https://github.com/AlbertoMOKnesys/mongoclienteasywrapper.git"
   },
   "keywords": [
-    "mongo",
     "mongodb",
-    "client",
-    "easy",
-    "wrapper",
-    "database",
-    "nosql",
-    "node",
+    "mongo",
     "mongoclient",
-    "mongo client",
-    "mongo client easy wrapper"
+    "wrapper",
+    "crud",
+    "aggregation",
+    "pagination",
+    "populate",
+    "nosql",
+    "database",
+    "lightweight",
+    "schemaless",
+    "objectid",
+    "lookup"
   ],
   "author": "Alberto Martinez, Christopher Taylor Gonzalez, Gustavo Luna, Jose Tello",
   "contributors": [
@@ -45,6 +56,9 @@
     "url": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper/issues"
   },
   "homepage": "https://github.com/AlbertoMOKnesys/mongoclienteasywrapper#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
     "mongodb": "4.17.2"
   }

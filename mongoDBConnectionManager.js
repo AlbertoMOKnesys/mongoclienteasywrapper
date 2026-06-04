@@ -1,6 +1,12 @@
 // mongoDBConnectionManager.js
 const { MongoClient } = require("mongodb");
 
+/**
+ * MongoDBConnectionManager
+ * ------------------------------------------------------------------
+ * Singleton that maintains a single MongoClient and caches Db handles
+ * per database name. Exported as a single shared instance.
+ */
 class MongoDBConnectionManager {
   constructor() {
     this.connections = {}; // Stores connections by database name
@@ -18,8 +24,7 @@ class MongoDBConnectionManager {
   }
 
   isConnected() {
-    // Check if the client exists and is connected
-    // MongoDB Driver 4.x+: check topology state directly
+    // topology.s.state is an internal API — no public isConnected() exists in Driver 4.x
     return this.client?.topology?.s?.state === "connected";
   }
 

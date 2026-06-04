@@ -20,11 +20,8 @@ let mongoDb;
 async function getMongoClient(dbName) {
   // If there is no active connection, establish a new one
   if (!mongoDBConnectionManager.isConnected()) {
-    // console.log("Establish new connection...");
     await mongoDBConnectionManager.connect(mongo.uri);
   }
-  // Otherwise, an existing connection will be reused
-  // console.log("Reusing existing connection...");
 
   // Retrieve and return the database handle for the given name
   return await mongoDBConnectionManager.getDatabase(dbName);
@@ -625,78 +622,76 @@ async function GetLastMongo(limit, collection, databaseName) {
   }
 }
 
+/**
+ * ND_PopulateAuto
+ * ------------------------------------------------------------------
+ * Automatically detects `_id` reference fields across all documents
+ * in the collection and creates `$lookup` stages to join related
+ * collections. Filters out soft-deleted documents
+ * (`status !== "deleted"`).
+ *
+ * Unlike `PopulateAuto`, this function scans ALL documents to
+ * discover every possible `_id` field (not just the first match).
+ *
+ * @param {Object}  query          - MongoDB filter object.
+ * @param {string}  collection     - Base collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array>}       Populated documents, or `[]` if none found / on error.
+ */
 async function ND_PopulateAuto(query, collection, databaseName) {
   try {
-    // Set the database name
-    const DatabaseName = databaseName || mongoDb;
+    const dbName = databaseName || mongoDb;
 
-    query = Object.keys(query).reduce((acum, property) => {
-      if (property.includes("_id")) {
-        return { ...acum, [property]: new ObjectId(query[property]) };
-      } else {
-        return { ...acum, [property]: query[property] };
+    query = Object.keys(query).reduce((acc, key) => {
+      if (key.includes("_id")) {
+        return { ...acc, [key]: new ObjectId(query[key]) };
       }
+      return { ...acc, [key]: query[key] };
     }, {});
 
-    const queryNotDeletes = { ...query, ...operatorNotDeleted };
+    const queryNotDeleted = { ...query, ...operatorNotDeleted };
+    const db = await getMongoClient(dbName);
 
-    // Connect to the database
-    const db = await getMongoClient(DatabaseName);
-
-    // para obtener el arreglo de todas las properties que contienen la coleccion
-    var allKeys = new Set(); // new set es para guardar unicamente una vez(no duplicados)
-    let properties = [];
+    /* -------- 1. Collect all field names across the collection -------- */
+    const allKeys = new Set();
     await db
       .collection(collection)
       .find()
-      .forEach(function (o) {
-        for (key in o) allKeys.add(key);
+      .forEach((doc) => {
+        for (const key in doc) allKeys.add(key);
       });
-    for (let key of allKeys) properties.push(key);
+    const properties = [...allKeys];
 
-    if (properties) {
-      // si hay almenos un documento
-      // const properties = Object.keys(doc[0]);
-      // queryNotDeletes
-      const allKeys = properties.filter((property) => property.includes("_id"));
-      if (allKeys.length > 1) {
-        /// existe almenos una referencia _id aparte del current _id
-        const aggregate = [{ $match: queryNotDeletes }];
+    if (properties.length === 0) return [];
 
-        const lookups = allKeys.slice(1).map((toJoin) => {
-          const collectionName = toJoin.replace("_id", "");
-          return {
-            $lookup: {
-              from: collectionName,
-              localField: toJoin,
-              foreignField: "_id",
-              as: collectionName,
-            },
-          };
-        });
+    /* -------- 2. Build $lookup stages for _id references -------- */
+    const idKeys = properties.filter((key) => key.includes("_id"));
 
-        aggregate.push(...lookups);
-        // if (Object.keys(query).length !== 0) {
-        //   lookup.push({ $match: query });
-        // }
-        let result = await db
-          .collection(collection)
-          .aggregate(aggregate)
-          .toArray();
-        // await db.close();
-        return result;
-      } else {
-        let result = await db
-          .collection(collection)
-          .find(queryNotDeletes)
-          .toArray();
-        // await db.close();
-        return result;
-      }
-    } else {
-      // no hay ni un solo registro de esta consulta
-      return [];
+    if (idKeys.length <= 1) {
+      return await db
+        .collection(collection)
+        .find(queryNotDeleted)
+        .toArray();
     }
+
+    const aggregate = [{ $match: queryNotDeleted }];
+    const lookups = idKeys.slice(1).map((toJoin) => {
+      const collectionName = toJoin.replace("_id", "");
+      return {
+        $lookup: {
+          from: collectionName,
+          localField: toJoin,
+          foreignField: "_id",
+          as: collectionName,
+        },
+      };
+    });
+    aggregate.push(...lookups);
+
+    return await db
+      .collection(collection)
+      .aggregate(aggregate)
+      .toArray();
   } catch (error) {
     console.error("ND_PopulateAuto error:", error.message);
     return [];
@@ -808,11 +803,11 @@ async function FindPaginatedOptions(
 
     // Extract options with defaults
     const {
-      sort = { _id: 1 }, // Default: ascending by _id (mantiene compatibilidad)
-      projection = {}, // Campos a incluir/excluir
-      hint = undefined, // Index hint
-      allowDiskUse = false, // Para sorts grandes
-      ...mongoOptions // Cualquier otra opción de MongoDB
+      sort = { _id: 1 },
+      projection = {},
+      hint = undefined,
+      allowDiskUse = false,
+      ...mongoOptions
     } = options;
 
     /* -------- Core operation -------- */
@@ -1153,126 +1148,134 @@ async function UpsertMongo(query, newProperties, collection, databaseName) {
   }
 }
 
-// --- The following functions have not been cleaned yet, but they work ---
-function SavetoMongoCallback(objectToSave, collection, databaseName) {
-  const DatabaseName = databaseName == null ? mongoDb : databaseName;
-  MongoClient.connect(mongo.uri, { useUnifiedTopology: true }, (err, db) => {
-    if (err) console.log(err);
-    const dbo = db.db(DatabaseName);
-    dbo.collection(collection).insertOne(objectToSave, (err2) => {
-      if (err2) console.log(err2);
-      db.close();
-    });
-  });
+/**
+ * SavetoMongoCallback
+ * ------------------------------------------------------------------
+ * Inserts a single document into a collection as a fire-and-forget
+ * operation.
+ *
+ * @param {Object}  objectToSave   - Document to insert.
+ * @param {string}  collection     - Target collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ */
+async function SavetoMongoCallback(objectToSave, collection, databaseName) {
+  try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    await db.collection(collection).insertOne(objectToSave);
+  } catch (error) {
+    console.error("SavetoMongoCallback error:", error.message);
+  }
 }
 
+/**
+ * InsertIndexUnique
+ * ------------------------------------------------------------------
+ * Creates a unique index on the specified field(s) within a collection.
+ *
+ * @param {Object}  index          - Index specification (e.g. `{ email: 1 }`).
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<string|[]>}   Index name on success, empty array on failure.
+ */
 async function InsertIndexUnique(index, collection, databaseName) {
   try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    // let db = await MongoClient.connect(mongo.uri, { useUnifiedTopology: true });
-    // const dbo = db.db(DatabaseName);
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    return await db
       .collection(collection)
       .createIndex(index, { unique: true });
-    // await db.close();
-    //console.log(util.inspect(result, false, null, true /* enable colors */))
-    return result;
   } catch (error) {
-    console.log(error);
+    console.error("InsertIndexUnique error:", error.message);
     return [];
   }
 }
 
+/**
+ * ND_DeleteMongoby_id
+ * ------------------------------------------------------------------
+ * Soft-deletes a document by setting `{ status: "deleted" }`.
+ * Additionally, if the collection has unique indexes, the indexed
+ * field values are prefixed with `"Deleted{timestamp}-"` to free
+ * the original values for reuse without violating uniqueness.
+ *
+ * @param {string|ObjectId} _id         - The document's `_id`.
+ * @param {string}          collection  - Collection name.
+ * @param {string} [databaseName]       - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}  Update result on success, empty array on failure.
+ */
 async function ND_DeleteMongoby_id(_id, collection, databaseName) {
   try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
     const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    // let db = await MongoClient.connect(mongo.uri, {
-    //   useUnifiedTopology: true,
-    // });
-    // const dbo = db.db(DatabaseName);
-    const db = await getMongoClient(DatabaseName);
 
-    var newvalues = { $set: tagDeleted };
-    let result = await db.collection(collection).updateOne(query, newvalues);
+    /* -------- 1. Soft-delete the document -------- */
+    const result = await db
+      .collection(collection)
+      .updateOne(query, { $set: tagDeleted });
 
-    let indexes = await db.collection(collection).indexes();
-    console.log("infices de la colleccion: " + collection, indexes);
-    // [
-    //   {
-    //     v: 2,
-    //     key: { _id: 1 },
-    //     name: "_id_",
-    //     ns: "EMPRESAMEMIN23899203.trabajadores",
-    //   },
-    //   {
-    //     v: 2,
-    //     unique: true,
-    //     key: { curp: 1 },
-    //     name: "curp_1",
-    //     ns: "EMPRESAMEMIN23899203.trabajadores",
-    //   },
-    //   {
-    //     v: 2,
-    //     unique: true,
-    //     key: { imss: 1 },
-    //     name: "imss_1",
-    //     ns: "EMPRESAMEMIN23899203.trabajadores",
-    //   },
-    // ];
+    /* -------- 2. Handle unique index conflicts -------- */
+    const indexes = await db.collection(collection).indexes();
+    const indexedFields = indexes
+      .map((idx) => Object.keys(idx.key)[0])
+      .slice(1);
 
-    const arrIndices = indexes.map((index) => Object.keys(index.key)[0]);
-    arrIndices.shift();
-    console.log("arrIndices: ", arrIndices);
-    if (arrIndices.length > 0) {
-      let arrIndenfificados = await db
-        .collection(collection)
-        .find(query)
-        .toArray();
-      const identificado = arrIndenfificados[0];
-      console.log("identificado: ", identificado);
+    if (indexedFields.length > 0) {
+      const docs = await db.collection(collection).find(query).toArray();
+      const doc = docs[0];
 
-      const indexTagDeleted = arrIndices.reduce((acc, property) => {
-        return (acc = {
+      const renamedIndexValues = indexedFields.reduce((acc, property) => {
+        return {
           ...acc,
-          [property]: "Deleted" + Date.now() + "-" + identificado[property],
-        });
+          [property]: "Deleted" + Date.now() + "-" + doc[property],
+        };
       }, {});
 
-      console.log(indexTagDeleted);
-
-      var newvaluesIndex = { $set: indexTagDeleted };
-      let resultIndex = await db
+      await db
         .collection(collection)
-        .updateOne(query, newvaluesIndex);
-
-      console.log("MOFIFICADO TAMBIEN INDICES");
+        .updateOne(query, { $set: renamedIndexValues });
     }
-    // await db.close();
+
     return result;
   } catch (error) {
-    console.log(error);
+    console.error("ND_DeleteMongoby_id error:", error.message);
     return [];
   }
 }
 
+/**
+ * getIndexs
+ * ------------------------------------------------------------------
+ * Retrieves all indexes defined on a collection.
+ *
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array>}       Array of index definitions, or `[]` on error.
+ */
 async function getIndexs(collection, databaseName) {
   try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    const indexes = await db.collection(collection).indexes();
-    console.log("infices de la colleccion: " + collection, indexes);
-
-    return indexes;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    return await db.collection(collection).indexes();
   } catch (error) {
-    console.log(error);
+    console.error("getIndexs error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoManyRename
+ * ------------------------------------------------------------------
+ * Renames fields in all documents matching `query` using the
+ * `$rename` operator.
+ *
+ * @param {Object}  query           - Filter to select documents.
+ * @param {Object}  newProperties   - Rename mapping (e.g. `{ oldName: "newName" }`).
+ * @param {string}  collection      - Collection name.
+ * @param {string} [databaseName]   - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>} Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyRename(
   query,
   newProperties,
@@ -1280,22 +1283,29 @@ async function UpdateMongoManyRename(
   databaseName,
 ) {
   try {
-    // newProperties = ConvertIdtoObjectId(newProperties);
-    // newProperties = ConvertDatetoDatetime(newProperties);
-
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $rename: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    return await db
+      .collection(collection)
+      .updateMany(query, { $rename: newProperties });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoManyRename error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoBy_idPush
+ * ------------------------------------------------------------------
+ * Pushes a value into an array field of a single document
+ * identified by its `_id`.
+ *
+ * @param {string|ObjectId} _id           - The document's `_id`.
+ * @param {Object}          newProperties - Push specification (e.g. `{ tags: "new" }`).
+ * @param {string}          collection    - Collection name.
+ * @param {string} [databaseName]         - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}    Update result on success, empty array on failure.
+ */
 async function UpdateMongoBy_idPush(
   _id,
   newProperties,
@@ -1303,111 +1313,156 @@ async function UpdateMongoBy_idPush(
   databaseName,
 ) {
   try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
     const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $push: newProperties };
-    let result = await db.collection(collection).updateOne(query, newvalues);
-    // await db.close();
-    return result;
+    return await db
+      .collection(collection)
+      .updateOne(query, { $push: newProperties });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoBy_idPush error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoManyBy_idPush
+ * ------------------------------------------------------------------
+ * Pushes a value into an array field for multiple documents
+ * identified by an array of `_id` values.
+ *
+ * @param {Array<string|ObjectId>} _idArr         - Array of document `_id`s.
+ * @param {Object}                 newProperties  - Push specification.
+ * @param {string}                 collection     - Collection name.
+ * @param {string} [databaseName]                 - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}            Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyBy_idPush(
   _idArr,
   newProperties,
   collection,
   databaseName,
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e));
-  //si no lo resuelvo con or
   try {
-    const query = { _id: { $in: _idArrObject } };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $push: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const query = { _id: { $in: _idArr.map((e) => new ObjectId(e)) } };
+    return await db
+      .collection(collection)
+      .updateMany(query, { $push: newProperties });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoManyBy_idPush error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoManyBy_idAddToSet
+ * ------------------------------------------------------------------
+ * Adds a value to an array field (only if not already present) for
+ * multiple documents identified by an array of `_id` values.
+ *
+ * @param {Array<string|ObjectId>} _idArr         - Array of document `_id`s.
+ * @param {Object}                 newProperties  - AddToSet specification.
+ * @param {string}                 collection     - Collection name.
+ * @param {string} [databaseName]                 - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}            Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyBy_idAddToSet(
   _idArr,
   newProperties,
   collection,
   databaseName,
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e));
-  //si no lo resuelvo con or
   try {
-    const query = { _id: { $in: _idArrObject } };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $addToSet: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const query = { _id: { $in: _idArr.map((e) => new ObjectId(e)) } };
+    return await db
+      .collection(collection)
+      .updateMany(query, { $addToSet: newProperties });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoManyBy_idAddToSet error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoManyBy_idPull
+ * ------------------------------------------------------------------
+ * Removes a value from an array field for multiple documents
+ * identified by an array of `_id` values.
+ *
+ * @param {Array<string|ObjectId>} _idArr         - Array of document `_id`s.
+ * @param {Object}                 newProperties  - Pull specification.
+ * @param {string}                 collection     - Collection name.
+ * @param {string} [databaseName]                 - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}            Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyBy_idPull(
   _idArr,
   newProperties,
   collection,
   databaseName,
 ) {
-  const _idArrObject = _idArr.map((e) => new ObjectId(e));
-  //si no lo resuelvo con or
   try {
-    const query = { _id: { $in: _idArrObject } };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $pull: newProperties };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const query = { _id: { $in: _idArr.map((e) => new ObjectId(e)) } };
+    return await db
+      .collection(collection)
+      .updateMany(query, { $pull: newProperties });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoManyBy_idPull error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateMongoManyPullIDToCollectionPull
+ * ------------------------------------------------------------------
+ * Removes matching values from array fields across all documents
+ * that contain them. Uses `$pull` with the query as both the filter
+ * and the pull specification.
+ *
+ * @param {Object}  query          - Filter and pull specification
+ *                                   (e.g. `{ eventos_id: "abc" }`).
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>} Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyPullIDToCollectionPull(
   query,
   collection,
   databaseName,
 ) {
   try {
-    // ejemplo querie
-    // {eventos_id:"fwefewhui32432u"}
-
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = { $pull: query };
-    let result = await db.collection(collection).updateMany(query, newvalues);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    return await db
+      .collection(collection)
+      .updateMany(query, { $pull: query });
   } catch (error) {
-    console.log(error);
+    console.error(
+      "UpdateMongoManyPullIDToCollectionPull error:",
+      error.message,
+    );
     return [];
   }
 }
 
+/**
+ * UpdateMongoBy_idRemoveProperty
+ * ------------------------------------------------------------------
+ * Removes (unsets) a single property from a document identified
+ * by its `_id`.
+ *
+ * @param {string|ObjectId} _id        - The document's `_id`.
+ * @param {string}          property   - Name of the property to remove.
+ * @param {string}          collection - Collection name.
+ * @param {string} [databaseName]      - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>} Update result on success, empty array on failure.
+ */
 async function UpdateMongoBy_idRemoveProperty(
   _id,
   property,
@@ -1415,22 +1470,31 @@ async function UpdateMongoBy_idRemoveProperty(
   databaseName,
 ) {
   try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
     const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var valuesToRemove = { $unset: { [property]: 1 } };
-    let result = await db
+    return await db
       .collection(collection)
-      .updateOne(query, valuesToRemove);
-    // await db.close();
-    return result;
+      .updateOne(query, { $unset: { [property]: 1 } });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoBy_idRemoveProperty error:", error.message);
     return [];
   }
 }
 
+/**
+ * UpdateBy_idPush_id
+ * ------------------------------------------------------------------
+ * Pushes an ObjectId reference into an array field of a document.
+ * The array field name is derived from `originCollection`.
+ *
+ * @param {string|ObjectId} _id              - The document's `_id`.
+ * @param {string}          originCollection - Name used as the array field key.
+ * @param {string|ObjectId} new_id           - The ObjectId value to push.
+ * @param {string}          collection       - Collection name.
+ * @param {string} [databaseName]            - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>}       Update result on success, empty array on failure.
+ */
 async function UpdateBy_idPush_id(
   _id,
   originCollection,
@@ -1439,35 +1503,60 @@ async function UpdateBy_idPush_id(
   databaseName,
 ) {
   try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
     const query = { _id: new ObjectId(_id) };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var newvalues = {
-      $push: { [originCollection]: new ObjectId(new_id) },
-    };
-    let result = await db.collection(collection).updateOne(query, newvalues);
-    // await db.close();
-    return result;
+    return await db
+      .collection(collection)
+      .updateOne(query, {
+        $push: { [originCollection]: new ObjectId(new_id) },
+      });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateBy_idPush_id error:", error.message);
     return [];
   }
 }
 
-function DeleteMongoCallback(idObjectToDelete, collection, databaseName) {
-  const DatabaseName = databaseName == null ? mongoDb : databaseName;
-  MongoClient.connect(mongo.uri, { useUnifiedTopology: true }, (err, db) => {
-    if (err) console.log(err);
-    const dbo = db.db(DatabaseName);
-    var myquery = { _id: idObjectToDelete };
-    dbo.collection(collection).deleteOne(myquery, (err2) => {
-      if (err2) console.log(err2);
-      db.close();
-    });
-  });
+/**
+ * DeleteMongoCallback
+ * ------------------------------------------------------------------
+ * Deletes a single document by its `_id` as a fire-and-forget
+ * operation.
+ *
+ * @param {string|ObjectId} idObjectToDelete - The document's `_id`.
+ * @param {string}          collection       - Collection name.
+ * @param {string} [databaseName]            - Optional DB name; defaults to `mongoDb`.
+ */
+async function DeleteMongoCallback(
+  idObjectToDelete,
+  collection,
+  databaseName,
+) {
+  try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    await db.collection(collection).deleteOne({ _id: idObjectToDelete });
+  } catch (error) {
+    console.error("DeleteMongoCallback error:", error.message);
+  }
 }
 
+/**
+ * GetNextSequenceValue
+ * ------------------------------------------------------------------
+ * Atomically increments a `sequence_value` field and returns the
+ * value **before** the increment. Useful for generating sequential
+ * IDs or counters.
+ *
+ * If the document does not exist, it is created via `upsert: true`.
+ *
+ * @param {Object}  query          - Filter to locate the sequence document.
+ * @param {number}  increment      - Amount to increment by.
+ * @param {string}  collection     - Collection storing the sequence.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<number|null>} The sequence value before increment,
+ *                                 or `null` on error.
+ */
 async function GetNextSequenceValue(
   query,
   increment,
@@ -1475,40 +1564,59 @@ async function GetNextSequenceValue(
   databaseName,
 ) {
   try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
 
-    let result = await db
+    const result = await db
       .collection(collection)
       .findOneAndUpdate(
         query,
         { $inc: { sequence_value: increment } },
         { upsert: true },
       );
-    // await db.close();
-    //console.log(util.inspect(result, false, null, true /* enable colors */))
+
     return result.value.sequence_value;
   } catch (error) {
-    console.log(error.message);
+    console.error("GetNextSequenceValue error:", error.message);
     return null;
   }
 }
 
+/**
+ * ND_FindOne
+ * ------------------------------------------------------------------
+ * Retrieves the first document matching `query` that has not been
+ * soft-deleted (`status !== "deleted"`).
+ *
+ * @param {Object}  query          - MongoDB filter object.
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Object>}      The matched document, or `{}` on error.
+ */
 async function ND_FindOne(query, collection, databaseName) {
   try {
-    const queryNotDeletes = { ...query, ...operatorNotDeleted };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db.collection(collection).findOne(queryNotDeletes);
-    // await db.close();
-    return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const queryNotDeleted = { ...query, ...operatorNotDeleted };
+    return await db.collection(collection).findOne(queryNotDeleted);
   } catch (error) {
-    console.log(error.message);
+    console.error("ND_FindOne error:", error.message);
     return {};
   }
 }
 
+/**
+ * ND_FindMany
+ * ------------------------------------------------------------------
+ * Retrieves all documents matching `query` that have not been
+ * soft-deleted, with configurable sort order.
+ *
+ * @param {Object}  query          - MongoDB filter object.
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @param {Object} [order]         - Sort specification; defaults to `{ _id: 1 }`.
+ * @returns {Promise<Array>}       Array of matched documents, or `[]` on error.
+ */
 async function ND_FindMany(
   query,
   collection,
@@ -1516,23 +1624,34 @@ async function ND_FindMany(
   order = { _id: 1 },
 ) {
   try {
-    const queryNotDeletes = { ...query, ...operatorNotDeleted };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    let result = await db
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const queryNotDeleted = { ...query, ...operatorNotDeleted };
+    return await db
       .collection(collection)
-      .find(queryNotDeletes)
+      .find(queryNotDeleted)
       .sort(order)
       .toArray();
-    // await db.close();
-    return result;
   } catch (error) {
-    console.log(error.message);
+    console.error("ND_FindMany error:", error.message);
     return [];
   }
 }
 
+/**
+ * ND_FindPaginated
+ * ------------------------------------------------------------------
+ * Retrieves a specific page of documents matching `query` that
+ * have not been soft-deleted, sorted by `_id` ascending.
+ *
+ * @param {Object}  query          - MongoDB filter object.
+ * @param {number}  pageNumber     - Zero-based page index.
+ * @param {number}  nPerPage       - Number of documents per page.
+ * @param {string}  collection     - Collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array>}       Array with ≤ `nPerPage` documents,
+ *                                 or `[]` on error.
+ */
 async function ND_FindPaginated(
   query,
   pageNumber,
@@ -1541,226 +1660,219 @@ async function ND_FindPaginated(
   databaseName,
 ) {
   try {
-    const queryNotDeletes = { ...query, ...operatorNotDeleted };
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const queryNotDeleted = { ...query, ...operatorNotDeleted };
+    const skip = pageNumber > 0 ? pageNumber * nPerPage : 0;
 
-    // const skipIndex = (page - 1) * limit;
-    let result = await db
+    return await db
       .collection(collection)
-      .find(queryNotDeletes)
+      .find(queryNotDeleted)
       .sort({ _id: 1 })
+      .skip(skip)
       .limit(nPerPage)
-      .skip(pageNumber > 0 ? pageNumber * nPerPage : 0)
       .toArray();
-    // await db.close();
-    return result;
   } catch (error) {
-    console.log(error.message);
+    console.error("ND_FindPaginated error:", error.message);
     return [];
   }
 }
 
+/**
+ * Populate
+ * ------------------------------------------------------------------
+ * Performs `$lookup` joins on a collection using the specified
+ * foreign collection names. Each join assumes the local field
+ * is `"{collectionName}_id"` and the foreign field is `"_id"`.
+ *
+ * @param {string}        collection      - Base collection name.
+ * @param {string} [databaseName]         - Optional DB name; defaults to `mongoDb`.
+ * @param {Array<string>} joinCollection  - Array of collection names to join.
+ * @returns {Promise<Array>}              Populated documents, or `[]` on error.
+ */
 async function Populate(collection, databaseName, joinCollection) {
   try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
 
-    const lookup = joinCollection.map((toJoin) => {
+    const lookup = joinCollection.map((toJoin) => ({
+      $lookup: {
+        from: toJoin,
+        localField: toJoin + "_id",
+        foreignField: "_id",
+        as: toJoin,
+      },
+    }));
+
+    return await db.collection(collection).aggregate(lookup).toArray();
+  } catch (error) {
+    console.error("Populate error:", error.message);
+    return [];
+  }
+}
+
+/**
+ * PopulateAuto
+ * ------------------------------------------------------------------
+ * Automatically detects `_id` reference fields in the first matching
+ * document and creates `$lookup` stages to join the related
+ * collections. The foreign collection name is inferred by stripping
+ * `"_id"` from the field name (e.g. `user_id` → `user` collection).
+ *
+ * @param {Object}  query          - MongoDB filter object.
+ * @param {string}  collection     - Base collection name.
+ * @param {string} [databaseName]  - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array>}       Populated documents, or `[]` if none found / on error.
+ */
+async function PopulateAuto(query, collection, databaseName) {
+  try {
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+
+    if (query._id) query._id = new ObjectId(query._id);
+
+    const doc = await db.collection(collection).findOne(query);
+    if (!doc) return [];
+
+    const allKeys = Object.keys(doc).filter((key) => key.includes("_id"));
+
+    if (allKeys.length <= 1) {
+      return await db.collection(collection).find(query).toArray();
+    }
+
+    const aggregate = [{ $match: query }];
+    const lookups = allKeys.slice(1).map((toJoin) => {
+      const collectionName = toJoin.replace("_id", "");
       return {
         $lookup: {
-          from: toJoin,
-          localField: toJoin + "_id",
+          from: collectionName,
+          localField: toJoin,
           foreignField: "_id",
-          as: toJoin,
+          as: collectionName,
         },
       };
     });
+    aggregate.push(...lookups);
 
-    let result = await db.collection(collection).aggregate(lookup).toArray();
-    // await db.close();
-    return result;
+    return await db.collection(collection).aggregate(aggregate).toArray();
   } catch (error) {
-    console.log(error.message);
+    console.error("PopulateAuto error:", error.message);
     return [];
   }
 }
 
-async function PopulateAuto(query, collection, databaseName) {
-  try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    if (query._id) query._id = new ObjectId(query._id);
-    const db = await getMongoClient(DatabaseName);
-
-    var doc = await db.collection(collection).findOne(query);
-    if (doc) {
-      /// si hay almenos un documento
-      const properties = Object.keys(doc);
-      const allKeys = properties.filter((property) => property.includes("_id"));
-      if (allKeys.length > 1) {
-        /// existe almenos una referencia _id aparte del current _id
-        // allKeys.shift(); // para remover el primer registro _id
-        const aggregate = [{ $match: query }];
-
-        const lookups = allKeys.slice(1).map((toJoin) => {
-          const collectionName = toJoin.replace("_id", "");
-          return {
-            $lookup: {
-              from: collectionName,
-              localField: toJoin,
-              foreignField: "_id",
-              as: collectionName,
-            },
-          };
-        });
-
-        aggregate.push(...lookups);
-        // if (Object.keys(query).length !== 0) {
-        //   lookup.push({ $match: query });
-        // }
-        let result = await db
-          .collection(collection)
-          .aggregate(aggregate)
-          .toArray();
-        // await db.close();
-        return result;
-      } else {
-        let result = await db.collection(collection).find(query).toArray();
-        // await db.close();
-        return result;
-      }
-    } else {
-      // await db.close();
-      // no hay ni un solo registro de esta consulta
-      return [];
-    }
-  } catch (error) {
-    // await db.close();
-    console.log(error.message);
-    return [];
-  }
-}
-
+/**
+ * FindIDOnePopulated
+ * ------------------------------------------------------------------
+ * Finds a single document by `_id` and automatically populates
+ * all detected `_id` reference fields via `$lookup`.
+ *
+ * @param {string|ObjectId} Id          - The document's `_id`.
+ * @param {string}          collection  - Collection name.
+ * @param {string} [databaseName]       - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array|Object>}     Populated documents array, or `{}`
+ *                                      if not found / on error.
+ */
 async function FindIDOnePopulated(Id, collection, databaseName) {
-  const DatabaseName = databaseName == null ? mongoDb : databaseName;
-  var o_id = new ObjectId(Id);
-  const query = { _id: o_id };
   try {
-    const db = await getMongoClient(DatabaseName);
-    // let result = await dbo.collection(collection).findOne(query);
-    // await db.close();
-    // //console.log(util.inspect(result, false, null, true /* enable colors */))
-    // return result;
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const query = { _id: new ObjectId(Id) };
 
     const doc = await db.collection(collection).findOne(query);
-    if (doc) {
-      /// si hay almenos un documento
-      const properties = Object.keys(doc);
-      const allKeys = properties.filter((property) => property.includes("_id"));
-      if (allKeys.length > 1) {
-        const aggregate = [{ $match: query }];
+    if (!doc) return {};
 
-        const lookups = allKeys.slice(1).map((toJoin) => {
-          const collectionName = toJoin.replace("_id", "");
-          return {
-            $lookup: {
-              from: collectionName,
-              localField: toJoin,
-              foreignField: "_id",
-              as: collectionName,
-            },
-          };
-        });
+    const allKeys = Object.keys(doc).filter((key) => key.includes("_id"));
 
-        aggregate.push(...lookups);
-        // if (Object.keys(query).length !== 0) {
-        //   lookup.push({ $match: query });
-        // }
-        let result = await db
-          .collection(collection)
-          .aggregate(aggregate)
-          .toArray();
-        // await db.close();
-        return result;
-      } else {
-        let result = await db.collection(collection).find(query).toArray();
-        // await db.close();
-        return result;
-      }
-    } else {
-      // no hay ni un solo registro de esta consulta
-      return {};
+    if (allKeys.length <= 1) {
+      return await db.collection(collection).find(query).toArray();
     }
+
+    const aggregate = [{ $match: query }];
+    const lookups = allKeys.slice(1).map((toJoin) => {
+      const collectionName = toJoin.replace("_id", "");
+      return {
+        $lookup: {
+          from: collectionName,
+          localField: toJoin,
+          foreignField: "_id",
+          as: collectionName,
+        },
+      };
+    });
+    aggregate.push(...lookups);
+
+    return await db.collection(collection).aggregate(aggregate).toArray();
   } catch (error) {
-    console.log(error.message);
+    console.error("FindIDOnePopulated error:", error.message);
     return {};
   }
 }
 
+/**
+ * ND_FindIDOnePopulated
+ * ------------------------------------------------------------------
+ * Finds a single non-deleted document by `_id` and automatically
+ * populates all detected `_id` reference fields via `$lookup`.
+ *
+ * @param {string|ObjectId} Id          - The document's `_id`.
+ * @param {string}          collection  - Collection name.
+ * @param {string} [databaseName]       - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<Array|Object>}     Populated documents array, or `{}`
+ *                                      if not found / on error.
+ */
 async function ND_FindIDOnePopulated(Id, collection, databaseName) {
-  const DatabaseName = databaseName == null ? mongoDb : databaseName;
-  var o_id = new ObjectId(Id);
-  const query = { _id: o_id };
-  const queryNotDeletes = { ...query, ...operatorNotDeleted };
   try {
-    const db = await getMongoClient(DatabaseName);
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    const query = { _id: new ObjectId(Id) };
+    const queryNotDeleted = { ...query, ...operatorNotDeleted };
 
-    // let result = await dbo.collection(collection).findOne(query);
-    // await db.close();
-    // //console.log(util.inspect(result, false, null, true /* enable colors */))
-    // return result;
+    const doc = await db.collection(collection).findOne(queryNotDeleted);
+    if (!doc) return {};
 
-    const doc = await db.collection(collection).findOne(queryNotDeletes);
-    if (doc) {
-      /// si hay almenos un documento
-      const properties = Object.keys(doc);
-      const allKeys = properties.filter((property) => property.includes("_id"));
-      //queryNotDeletes
-      if (allKeys.length > 1) {
-        /// existe almenos una referencia _id aparte del current _id
-        // allKeys.shift(); // para remover el primer registro _id
-        const aggregate = [{ $match: queryNotDeletes }];
+    const allKeys = Object.keys(doc).filter((key) => key.includes("_id"));
 
-        const lookups = allKeys.slice(1).map((toJoin) => {
-          const collectionName = toJoin.replace("_id", "");
-          return {
-            $lookup: {
-              from: collectionName,
-              localField: toJoin,
-              foreignField: "_id",
-              as: collectionName,
-            },
-          };
-        });
-
-        aggregate.push(...lookups);
-        // if (Object.keys(query).length !== 0) {
-        //   lookup.push({ $match: query });
-        // }
-        let result = await db
-          .collection(collection)
-          .aggregate(aggregate)
-          .toArray();
-        // await db.close();
-        return result;
-      } else {
-        let result = await db
-          .collection(collection)
-          .find(queryNotDeletes)
-          .toArray();
-        // await db.close();
-        return result;
-      }
-    } else {
-      // no hay ni un solo registro de esta consulta
-      return {};
+    if (allKeys.length <= 1) {
+      return await db
+        .collection(collection)
+        .find(queryNotDeleted)
+        .toArray();
     }
+
+    const aggregate = [{ $match: queryNotDeleted }];
+    const lookups = allKeys.slice(1).map((toJoin) => {
+      const collectionName = toJoin.replace("_id", "");
+      return {
+        $lookup: {
+          from: collectionName,
+          localField: toJoin,
+          foreignField: "_id",
+          as: collectionName,
+        },
+      };
+    });
+    aggregate.push(...lookups);
+
+    return await db.collection(collection).aggregate(aggregate).toArray();
   } catch (error) {
-    console.log(error.message);
+    console.error("ND_FindIDOnePopulated error:", error.message);
     return {};
   }
 }
 
+/**
+ * UpdateMongoManyPull
+ * ------------------------------------------------------------------
+ * Removes values from array fields across all documents matching
+ * `query` using the `$pull` operator.
+ *
+ * @param {Object}  query             - Filter to select documents.
+ * @param {Object}  propertiesRemove  - Pull specification (e.g. `{ tags: "old" }`).
+ * @param {string}  collection        - Collection name.
+ * @param {string} [databaseName]     - Optional DB name; defaults to `mongoDb`.
+ * @returns {Promise<UpdateResult|[]>} Update result on success, empty array on failure.
+ */
 async function UpdateMongoManyPull(
   query,
   propertiesRemove,
@@ -1768,24 +1880,18 @@ async function UpdateMongoManyPull(
   databaseName,
 ) {
   try {
-    const DatabaseName = databaseName == null ? mongoDb : databaseName;
-    const db = await getMongoClient(DatabaseName);
-
-    var removeValues = { $pull: propertiesRemove };
-    let result = await db
+    const dbName = databaseName || mongoDb;
+    const db = await getMongoClient(dbName);
+    return await db
       .collection(collection)
-      .updateMany(query, removeValues);
-    // await db.close();
-    //console.log(util.inspect(result, false, null, true /* enable colors */))
-    return result;
+      .updateMany(query, { $pull: propertiesRemove });
   } catch (error) {
-    console.log(error);
+    console.error("UpdateMongoManyPull error:", error.message);
     return [];
   }
 }
 
 module.exports = function (connectionString, defaultDbName) {
-  // Connect=Connect;
   mongo = { uri: connectionString };
   mongoDb = defaultDbName;
 
@@ -1838,7 +1944,7 @@ module.exports = function (connectionString, defaultDbName) {
     UpdateMongoManyPull,
     UpdateMongoManyPullIDToCollectionPull,
     UpdateMongoManyRename,
-    UpsertMongo,
     UpdateOneRaw,
+    UpsertMongo,
   };
 };
