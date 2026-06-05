@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.13] – 2026-06-05
+
+### Fixed
+
+- **`ConvertIdtoObjectId`** — Date objects were destroyed by recursion (`new Date()` → `{}`). Added `instanceof Date` guard.
+- **`ConvertIdtoObjectId`** — Removed `endsWith("Id")` matching (camelCase). Only `_id` (underscore) fields are now detected, reducing false warnings on external IDs like `refundId`.
+- **`disconnect()`** — Fixed reference to `connectionManager` (undefined) → `mongoDBConnectionManager`.
+
+### Added
+
+- **`disconnect()`** — Exposes `closeAllConnections()` for clean shutdown in scripts, lambdas, and tests.
+
+### Tests
+
+- Added `Preserve Date objects` test for `ConvertIdtoObjectId`.
+- Total tests: 31 → 32.
+
+---
+
 ## [1.2.12] – 2026-06-02
 
 ### Changed
