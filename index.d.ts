@@ -82,9 +82,6 @@ interface MongoWrapper {
   ND_FindPaginated(query: Document, pageNumber: number, nPerPage: number, collection: string, databaseName?: string): Promise<Document[]>;
   ND_DeleteMongoby_id(_id: string | ObjectId, collection: string, databaseName?: string): Promise<UpdateResult>;
 
-  // Connection
-  disconnect(): Promise<void>;
-
   // Utility
   Count(query: Document, collection: string, databaseName?: string): Promise<number>;
   Distinct(query: Document, collection: string, databaseName?: string): Promise<unknown[]>;

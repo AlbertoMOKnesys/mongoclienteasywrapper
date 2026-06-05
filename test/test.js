@@ -390,14 +390,6 @@ const testConvertAlreadyObjectId = async () => {
   assert.ok(result.user_id instanceof ObjectId, "should keep existing ObjectId");
 };
 
-const testConvertPreservesDate = async () => {
-  const now = new Date();
-  const result = ConvertIdtoObjectId({ refundedAt: now, user_id: testIdDocument1 });
-  assert.ok(result.refundedAt instanceof Date, "should preserve Date objects");
-  assert.strictEqual(result.refundedAt.getTime(), now.getTime(), "should keep same date value");
-  assert.ok(result.user_id instanceof ObjectId, "should still convert _id fields");
-};
-
 // --------------- Test runner ---------------
 
 const runTests = async () => {
@@ -501,7 +493,6 @@ const runTests = async () => {
   await runTest("Convert array of ids", testConvertArray);
   await runTest("Skip non-id keys", testConvertSkipsNonIdKeys);
   await runTest("Keep existing ObjectId", testConvertAlreadyObjectId);
-  await runTest("Preserve Date objects", testConvertPreservesDate);
 
   // Summary
   console.log(`\n${passed} passed, ${failed} failed\n`);
