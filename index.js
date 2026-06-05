@@ -1902,6 +1902,7 @@ module.exports = function (connectionString, defaultDbName) {
     DeleteMongo,
     DeleteMongoby_id,
     DeleteMongoCallback,
+    disconnect: () => mongoDBConnectionManager.closeAllConnections(),
     Distinct,
     DropCollection,
     FindIDOne,
