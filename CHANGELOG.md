@@ -1,31 +1,107 @@
-# Changelog
+  # Changelog
 
-All notable changes to this project will be documented in this file.
+  All notable changes to this project will be documented in this file.
 
----
+  ---
 
-## [1.2.13] – 2026-06-05
+  ## [1.2.13] – 2026-06-05
 
-### Fixed
+  ### Fixed
 
-- **`ConvertIdtoObjectId`** — Date objects were destroyed by recursion (`new Date()` → `{}`). Added `instanceof Date` guard.
-- **`ConvertIdtoObjectId`** — Removed `endsWith("Id")` matching (camelCase). Only `_id` (underscore) fields are now detected, reducing false warnings on external IDs like `refundId`.
-- **`disconnect()`** — Fixed reference to `connectionManager` (undefined) → `mongoDBConnectionManager`.
+  - **`ConvertIdtoObjectId`** — Date objects were destroyed by recursion (`new Date()` → `{}`). Added `instanceof Date` guard.
+  - **`ConvertIdtoObjectId`** — Removed `endsWith("Id")` matching (camelCase). Only `_id` (underscore) fields are now detected, reducing
+  false warnings on external IDs like `refundId`.
+  - **`disconnect()`** — Fixed reference to `connectionManager` (undefined) → `mongoDBConnectionManager`.
 
-### Added
+  ### Added
 
-- **`disconnect()`** — Exposes `closeAllConnections()` for clean shutdown in scripts, lambdas, and tests.
+  - **`disconnect()`** — Exposes `closeAllConnections()` for clean shutdown in scripts, lambdas, and tests.
 
-### Tests
+  ### Tests
 
-- Added `Preserve Date objects` test for `ConvertIdtoObjectId`.
-- Total tests: 31 → 32.
+  - Added `Preserve Date objects` test for `ConvertIdtoObjectId`.
+  - Total tests: 31 → 32.
 
----
+  ---
 
-## [1.2.12] – 2026-06-02
+  ## [1.2.12] – 2026-06-02
 
-### Changed
+  ### Changed
+
+  - **`ConvertIdtoObjectId`** rewritten with recursive conversion, hex24 validation, `$` operator support, and `console.warn` for invalid
+  ObjectId strings. Replaces the old flat single-level converter.
+  - Removed unused legacy files: `common.js`, `assing.js` (broken imports, dead code).
+  - Removed draft file `utils/convertId copy.js`.
+  - Moved `index-old.js` to `legacy/` folder.
+  - Added `files` whitelist to `package.json` — npm only publishes essential files.
+  - Added `engines` field (`node >= 14.0.0`) to `package.json`.
+  - Added TypeScript type definitions (`index.d.ts`) for all 51 exported functions.
+
+  ### Tests
+
+  - Added test infrastructure: `assert` module, `runTest` helper with pass/fail counters, proper `process.exit(1)` on failure.
+  - Added assertions to all 10 existing tests (previously only logged results without validation).
+  - Fixed `ObjectId()` calls without `new` across all test data (~15 occurrences).
+  - Fixed `error.me` typo in `ND_PopulateAuto` test.
+  - Added 6 new Core CRUD tests: `FindOne`, `FindMany`, `FindManyLimit`, `UpdateMongo`, `UpsertMongo`, `Count`.
+  - Added 8 new `ConvertIdtoObjectId` unit tests: valid hex, invalid string, null, nested objects, `$` operators, arrays, non-id keys,
+  existing ObjectId.
+  - Total tests: 10 → 31.
+
+  ### Documentation
+
+  - Rewrote `README.md`: added npm/license badges, setup with `defaultDbName`, ~20 functions documented with examples, remaining ~30 listed
+  with signatures, organized by category (Insert, Find, Pagination, Update, Delete, Aggregation, Population, ND\_, Other), added "Important 
+  Notes" section.
+  - Added "Why use this instead of Mongoose?" comparison table to `README.md`.
+  - Improved `package.json` description and keywords for npm search discoverability.
+  - Added JSDoc to `MongoDBConnectionManager` class.
+  - Cleaned duplicate comment in `mongoDBConnectionManager.js` `isConnected()`.
+
+  ---
+
+  ## [1.2.9] – 2026-05-26
+
+  ### Changed
+
+  - **`SavetoMongoCallback`** converted from legacy callback-based pattern to `async`/`await` using `getMongoClient`.
+  - **`DeleteMongoCallback`** converted from legacy callback-based pattern to `async`/`await` using `getMongoClient`.
+  - All remaining functions refactored to project conventions: `const` everywhere, `databaseName || mongoDb` pattern, no `var`, direct 
+  returns without unnecessary intermediate variables.
+  - **`module.exports`** export order fixed: `UpdateOneRaw` now listed before `UpsertMongo` (alphabetical order).
+  - Removed outdated `indexNew.js` draft file.
+  - Removed commented-out legacy code across `index.js` (`db.close()` calls, old `MongoClient.connect` blocks, debug `console.log` 
+  statements).
+
+  ### Documentation
+
+  - Added inline English JSDoc to:
+    - `ND_PopulateAuto`
+    - `SavetoMongoCallback`
+    - `InsertIndexUnique`
+    - `ND_DeleteMongoby_id`
+    - `getIndexs`
+    - `UpdateMongoManyRename`
+    - `UpdateMongoBy_idPush`
+    - `UpdateMongoManyBy_idPush`
+    - `UpdateMongoManyBy_idAddToSet`
+    - `UpdateMongoManyBy_idPull`
+    - `UpdateMongoManyPullIDToCollectionPull`
+    - `UpdateMongoBy_idRemoveProperty`
+    - `UpdateBy_idPush_id`
+    - `DeleteMongoCallback`
+    - `GetNextSequenceValue`
+    - `ND_FindOne`
+    - `ND_FindMany`
+    - `ND_FindPaginated`
+    - `Populate`
+    - `PopulateAuto`
+    - `FindIDOnePopulated`
+    - `ND_FindIDOnePopulated`
+    - `UpdateMongoManyPull`
+  - Removed all Spanish-language inline comments from `index.js` (English only).
+
+  ---
 
 - **`ConvertIdtoObjectId`** rewritten with recursive conversion, hex24 validation, `$` operator support, and `console.warn` for invalid ObjectId strings. Replaces the old flat single-level converter.
 - Removed unused legacy files: `common.js`, `assing.js` (broken imports, dead code).
