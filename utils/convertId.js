@@ -5,7 +5,7 @@ function isHex24(s) {
 }
 
 /**
- * Recursively converts any property whose name includes "_id" or ends in "Id"
+ * Recursively converts any property whose name ends in "_id"
  * to ObjectId, both in objects and arrays, without breaking operators ($set, $inc, ...).
  */
 function ConvertIdtoObjectId(input) {
@@ -16,6 +16,7 @@ function ConvertIdtoObjectId(input) {
   }
 
   if (typeof input !== "object") return input;
+  if (input instanceof Date) return input;
   if (input._bsontype === "ObjectID") return input;
 
   const out = {};
@@ -25,7 +26,7 @@ function ConvertIdtoObjectId(input) {
       continue;
     }
 
-    const looksLikeIdKey = key.endsWith("_id") || key.endsWith("Id");
+    const looksLikeIdKey = key.endsWith("_id");
     if (looksLikeIdKey) {
       if (Array.isArray(val)) {
         out[key] = val.map((v) =>

@@ -4,6 +4,16 @@
 
   ---
 
+  ## [1.2.14] – 2026-06-09
+
+  ### Fixed
+
+  - **`ConvertIdtoObjectId`** — Date objects were destroyed by recursion (`new Date()` → `{}`). Added `instanceof Date` guard. (fix lost during 1.2.13 merge)
+  - **`ConvertIdtoObjectId`** — Removed `endsWith("Id")` matching (camelCase). Only `_id` (underscore) fields are now detected. (fix lost during 1.2.13 merge)
+  - **`index.d.ts`** — Added missing `disconnect()` type definition.
+
+  ---
+
   ## [1.2.13] – 2026-06-05
 
   ### Fixed
